@@ -3,6 +3,7 @@ from app import db
 import random
 from app.emailer import send_email
 import time
+import re
 
 def generate_number():
 	"""Generate a random 6-digit number as a string."""
@@ -43,6 +44,11 @@ def handle_enter_email():
 	st.markdown("### Enter your email below")
 	with st.form(key='new_user_form'):
 		email = st.text_input("📧 Email", placeholder="your.email@example.com")
+		# Sanitize email input
+		email = email.strip().lower() if email else None
+		email_valid = bool(email and re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
+		if email and not email_valid:
+			st.error("❌ Please enter a valid email address.")
 		col1, col2 = st.columns(2)
 		with col1:
 			submit_button = st.form_submit_button(label='✅ Submit', use_container_width=True)
@@ -51,7 +57,7 @@ def handle_enter_email():
 				st.session_state.enter_email = False
 				st.rerun()
 		if submit_button:
-			if email:
+			if email_valid:
 				if db.get_user(email):
 					st.session_state.enter_email = False
 					st.session_state.edit_research_interests = True
@@ -76,15 +82,21 @@ def handle_edit_research_interests():
 		db_journals = temp_db_journals.split(journals_join_split)
 		st.text(db_email)
 		u_query = st.text_area("💬 Your Query", value=db_query if db_query else None, placeholder="Describe your query here..." if not db_query else None, )
+		# Sanitize user input to prevent potential issues
+		u_query = u_query.strip() if u_query else None
+		if not u_query:
+			st.error("❌ You need to to enter a query")
+		if u_query and len(u_query) > 1000:  # Limit query length to 1000 characters
+			st.error("❌ Query is too long. Please limit to 1000 characters.")
+			u_query = None
+		if u_query and re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', u_query, re.IGNORECASE):
+			st.error("❌ Query contains potentially harmful SQL-like keywords. Please enter a valid research query.")
+			u_query = None
 		all_journals = db.get_all_journals()
 		u_journals = st.multiselect("Journals", all_journals, filter_mode="contains", default=db_journals if db_journals else None)
+		if not u_journals:
+			st.error("❌ You need to select at least one Journal")
 		u_n_of_papers = st.slider("Number of papers to receive each month", min_value=10, max_value=100, value=db_n_of_papers if db_n_of_papers else 20, step=10)
-		if u_query == db_query:
-			u_query = None
-		if u_journals == db_journals:
-			u_journals = None
-		if u_n_of_papers == db_n_of_papers:
-			u_n_of_papers = None
 
 		col1, col2 = st.columns(2)
 		with col1:
@@ -100,7 +112,7 @@ def handle_edit_research_interests():
 			st.error("❌ You are a new user so for the first time you need to set the missing values")
 
 		if submit_button:
-			if len(u_journals) >= 1 and u_query:
+			if u_journals and u_query:
 				db.update_user_interests(
 					journals_join_split=journals_join_split,
 					email=db_email,
@@ -114,10 +126,6 @@ def handle_edit_research_interests():
 				st.success("🎉 Your query has been submitted successfully!")
 				time.sleep(2)
 				st.rerun()
-			if not u_query:
-				st.error("❌ You need to to enter a query")
-			if len(u_journals) < 1:
-				st.error("❌ You need to select at least one Journal")
 
 def show_verification():
 	st.info("✉️ A verification code has been sent to your email. Please check your inbox.")
@@ -125,6 +133,8 @@ def show_verification():
 	c1, c2, c3 = st.columns(3)
 	with c1:
 		verification_input = st.text_input("🔐 Enter the verification code", placeholder="000000")
+		# Sanitize verification input
+		verification_input = verification_input.strip() if verification_input else ""
 	
 	col1, col2 = st.columns(2)
 	with col1:
