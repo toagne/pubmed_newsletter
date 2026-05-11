@@ -28,15 +28,15 @@ def init_db():
 	conn.commit()
 	conn.close()
 
-def add_user(email, query):
+def add_user(email):
 	"""Add a new user query to the database."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
-	cursor.execute("INSERT INTO users (email, query) VALUES (?, ?)", (email, query))
+	cursor.execute("INSERT INTO users (email) VALUES (?)", (email,))
 	conn.commit()
 	conn.close()
 
-def update_user_interests(email, query=None, journals=None, num_papers=None):
+def update_user_interests(journals_join_split, email, query=None, journals=None, num_papers=None):
 	"""Update the query and interests for an existing user in the database."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
@@ -47,7 +47,7 @@ def update_user_interests(email, query=None, journals=None, num_papers=None):
 		params.append(query)
 	if journals:
 		updates.append("journals = ?")
-		params.append(','.join(journals))
+		params.append(journals_join_split.join(journals))
 	if num_papers:
 		updates.append("num_papers = ?")
 		params.append(num_papers)
@@ -61,7 +61,7 @@ def get_user(email):
 	"""Fetch a user query from the database based on the email."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
-	cursor.execute("SELECT email, query, journals, num_papers FROM users WHERE email = ?", (email,))
+	cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
 	user = cursor.fetchone()
 	conn.close()
 	return user
@@ -70,7 +70,7 @@ def get_all_users():
 	"""Fetch all user queries from the database and return them as a list of tuples (email, query)."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
-	cursor.execute("SELECT email, query, journals, num_papers FROM users")
+	cursor.execute("SELECT * FROM users")
 	users = cursor.fetchall()
 	conn.close()
 	return users
@@ -92,7 +92,7 @@ def add_journals(info):
 	conn.commit()
 	conn.close()
 
-def get_journals_name():
+def get_all_journals():
 	"""Fetch all journal names from the database and return them as a list."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
