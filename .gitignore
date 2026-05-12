@@ -31,3 +31,5 @@ cover/
 
 # Database
 *.sqlite
+
+temp.py

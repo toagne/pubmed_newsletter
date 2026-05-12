@@ -25,22 +25,12 @@ def analyze_papers(papers, query, batch_size=10):
 	return all_results
 
 def get_best_papers(query, papers, n_of_papers):
-	docs = [Document(page_content=f"{p.abstract}", metadata={"pmid": p.pmid, "journal": p.journal, "title": p.title}) for p in papers]
+	paper_by_pmid = {p.pmid: p for p in papers}
+	docs = [Document(page_content=p.abstract, metadata={"pmid": p.pmid}) for p in papers]
 	embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 	vectorstore = FAISS.from_documents(docs, embeddings)
 	results = vectorstore.similarity_search(query, k=n_of_papers)
-	best_papers = []
-	for p in results:
-		best_papers.append(
-			Paper
-				(
-					pmid=p.metadata['pmid'],
-					journal=p.metadata['journal'],
-					title=p.metadata['title'],
-					abstract=p.page_content
-				)
-			)
-	return best_papers
+	return [paper_by_pmid[result.metadata["pmid"]] for result in results if result.metadata.get("pmid") in paper_by_pmid]
 
 def run_pipeline(query, papers, n_of_papers):
 	best_papers_with_faiss = get_best_papers(query, papers, n_of_papers)

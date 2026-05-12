@@ -11,14 +11,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Paper:
 	pmid: str
-	# doi: str
+	doi: str
 	journal: str
-	# journal_type: str
-	# publication_date: str
+	journal_type: str
+	publication_date: str
 	title: str
-	# authors: str
+	authors: str
 	abstract: str
 	summary: str = ""
+	relevance_score = 0
+	relevance_explanation = ""
 
 # helper function to fetch and parse XML from a URL
 def fetch_xml(url, params):
@@ -58,8 +60,6 @@ def format_batch(papers, query):
 		text += f"""
 Paper {i}
 PMID: {p.pmid}
-Journal: {p.journal}
-Title: {p.title}
 Abstract: {p.abstract}
 --------------------
 """

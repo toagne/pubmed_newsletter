@@ -44,8 +44,7 @@ Return a JSON array sorted by relevance score (highest first):
 
 [
 	{
-		"title": "...",
-		"journal": "...",
+		"pmid": "...",
 		"summary": "...",
 		"relevance_score": 0-10,
 		"relevance_explanation": "...",
