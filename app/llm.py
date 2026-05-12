@@ -1,11 +1,11 @@
-from langchain_openai import OpenAI
+from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-PROMPT = """
+ANALYSIS_PROMPT = """
 You are an expert medical research assistant specializing in analyzing biomedical and clinical research papers.
 
 Your role is to help users quickly understand and prioritize scientific papers retrieved from PubMed.
@@ -63,10 +63,28 @@ RULES:
 - Be concise but precise.
 """
 
-model = OpenAI(model="gpt-4.1-mini")
+PUBMED_PROMPT = """
+You are an expert biomedical semantic normalizer.
 
-def analyze_with_llm(info):
-	return model.invoke(
-		SystemMessage(content=PROMPT),
-		HumanMessage(content=info),
-	)
+Your task is to convert researcher descriptions into a SMALL set of generalized biomedical research keywords suitable for PubMed ESearch.
+
+Rules:
+1. Use broad but scientifically meaningful research areas.
+2. Normalize highly specific techniques into their broader scientific domain.
+3. Different descriptions of closely related research should produce similar keywords.
+4. Avoid overly generic words such as: "science", "research", "biology".
+5. Avoid very narrow experimental techniques when a broader category exists.
+6. Return ONLY a JSON array.
+7. Use 3 keywords maximum.
+8. Prefer stable scientific domains over specific assays or technologies.
+"""
+
+FAISS_PROMPT = ""
+
+model = ChatOpenAI(model="gpt-4.1-mini")
+
+def analyze_with_llm(prompt, input):
+	return model.invoke([
+		SystemMessage(content=prompt),
+		HumanMessage(content=input),
+	]).content

@@ -32,4 +32,6 @@ cover/
 # Database
 *.sqlite
 
+# temps
 temp.py
+*.pdf

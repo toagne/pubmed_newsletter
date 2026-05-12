@@ -1,20 +1,22 @@
 from app.utils import fetch_xml, logger, chunk_list, Paper, format_journals
 from app import db
 import time
+from app import llm
 
 # get ids of articles with given keywords and date
-def get_ids(journals) -> list[str | None]:
+def get_ids(journals, query) -> list[str | None]:
 	"""Fetch PubMed IDs based on a complex query that includes keywords, journal filters, and publication date.
 	Returns a list of PubMed IDs as strings, or an empty list if the fetch or parsing fails.
 	Note: The query is currently hardcoded to search for recent articles related to tumors, cancer, or bioinformatics in specific high-impact journals. This can be modified to accept dynamic input in the future."""
 	search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-	# keywords = llm.generate_keywords_from_user_query(query)
+	keywords = "(tumor OR cancer OR bioinformatics)"
+	# keywords = " OR ".join(llm.analyze_with_llm(llm.PUBMED_PROMPT, query))
 	journals = format_journals(journals)
 	search_params = {
 		"db": "pubmed", #database
 		# verify if without "keywords" is still accurate
 		# (tumor OR cancer OR bioinformatics)
-		"term": f"""(tumor OR cancer OR bioinformatics) AND
+		"term": f"""{keywords} AND
 			(
 				"Journal Article"[pt] OR
 				"Meta-Analysis"[pt] OR
@@ -25,7 +27,7 @@ def get_ids(journals) -> list[str | None]:
 			(
 				{journals}
 			) AND
-			("last 30 days"[pdat])""", #query - to be modified later to accept dynamic input
+			("last 30 days"[pdat])""",
 		"datetype": "pdat", #pubblication date
 		"sort": "relevance", #sort by relevance
 		"retmax": 1000, #number of results - to keep it manageable for testing, can be increased later
@@ -57,6 +59,8 @@ def get_all_papers(ids):
 			logger.error(f"Skipping batch due to fetch/parse failure: {ids_str}")
 			continue
 		for article in root.findall(".//PubmedArticle"):
+
+			# abstract
 			abstract_elem = article.findall(".//AbstractText")
 			if abstract_elem:
 				abstract = " ".join(" ".join("".join(abstract_part.itertext()).split()) for abstract_part in abstract_elem)
@@ -64,14 +68,51 @@ def get_all_papers(ids):
 					continue
 			else:
 				continue # skip papers with no abstract
-				# abstract = ""
+
+			# journal
 			journal = article.findtext(".//Title") or "Unknown Journal"
+
+			# title
 			title_elem = article.findall(".//ArticleTitle")
 			if title_elem:
 				title = " ".join(" ".join("".join(title_part.itertext()).split()) for title_part in title_elem)
 			else:
 				title = ""
-			info.append(Paper(pmid=article.findtext(".//PMID"), journal=journal, title=title, abstract=abstract))
+
+			# pmid
+			pmid=article.findtext(".//PMID") or "Unknown PMID"
+
+			# doi
+			doi=article.findtext(".//ArticleId[@IdType='doi']") or "Unknown doi"
+
+			# journal_type
+			journal_type=article.findtext(".//PublicationType") or "Unknown Journal type"
+
+			# date
+			year = article.findtext(".//PubDate//Year") or ""
+			month = article.findtext(".//PubDate//Month") or ""
+			day = article.findtext(".//PubDate//Day") or ""
+			publication_date = " ".join([year, month, day])
+
+			# authors
+			authors_list = []
+			for author in article.find(".//AuthorList"):
+				forename = author.findtext(".//ForeName", "")
+				lastname = author.findtext(".//LastName", "")
+				if forename or lastname:
+					authors_list.append(f"{forename} {lastname}".strip())
+			authors = ", ".join(authors_list)
+
+			info.append(Paper(
+				pmid=pmid,
+				doi=doi,
+				journal=journal,
+				journal_type=journal_type,
+				publication_date=publication_date,
+				title=title,
+				authors=authors,
+				abstract=abstract
+			))
 		time.sleep(0.5) # to avoid hitting rate limits
 	return info
 

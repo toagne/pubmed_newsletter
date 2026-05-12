@@ -25,8 +25,8 @@ def run_monthly_job():
 			fetched_paper_ids.update(new_ids)
 		# Build user's papers list from cache (both cached and newly fetched)
 		user_papers = [papers_cache[pid] for pid in user_papers_ids if pid in papers_cache]
-	# 	subject = f"Monthly Update on your query: {query}"
-	# 	body = run_pipeline(query, user_papers, n_of_papers)
-	# 	send_email(email, subject, body)
+		# subject = f"Monthly Update on your query: {query}"
+		body = run_pipeline(query, user_papers, n_of_papers)
+		# send_email(email, subject, body)
 	
 	# logging.info("Monthly job completed. Emails sent to all users.")
