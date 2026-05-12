@@ -28,8 +28,6 @@ def get_best_papers(query, papers, n_of_papers):
 	docs = [Document(page_content=f"{p.abstract}", metadata={"pmid": p.pmid, "journal": p.journal, "title": p.title}) for p in papers]
 	embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 	vectorstore = FAISS.from_documents(docs, embeddings)
-	# query = "I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data"
-	# query = "tumor evolution cancer genomics transcriptomics gene expression"
 	results = vectorstore.similarity_search(query, k=n_of_papers)
 	best_papers = []
 	for p in results:
@@ -44,8 +42,9 @@ def get_best_papers(query, papers, n_of_papers):
 			)
 	return best_papers
 
-def run_pipeline(query, papers):
-	best_papers_with_faiss = get_best_papers(query, papers, n_of_papers=3)
+def run_pipeline(query, papers, n_of_papers):
+	best_papers_with_faiss = get_best_papers(query, papers, n_of_papers)
+	return best_papers_with_faiss
 	# best_papers_with_llm = analyze_papers(best_papers_with_faiss, query)
-	return format_email(best_papers_with_faiss)
+	# return format_email(best_papers_with_faiss)
 	# return format_email(best_papers_with_llm)

@@ -1,16 +1,20 @@
-from app.utils import fetch_xml, logger, chunk_list, Paper
+from app.utils import fetch_xml, logger, chunk_list, Paper, format_journals
 from app import db
 import time
 
 # get ids of articles with given keywords and date
-def get_ids() -> list[str | None]:
+def get_ids(journals) -> list[str | None]:
 	"""Fetch PubMed IDs based on a complex query that includes keywords, journal filters, and publication date.
 	Returns a list of PubMed IDs as strings, or an empty list if the fetch or parsing fails.
 	Note: The query is currently hardcoded to search for recent articles related to tumors, cancer, or bioinformatics in specific high-impact journals. This can be modified to accept dynamic input in the future."""
 	search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+	# keywords = llm.generate_keywords_from_user_query(query)
+	journals = format_journals(journals)
 	search_params = {
 		"db": "pubmed", #database
-		"term": """(tumor OR cancer OR bioinformatics) AND
+		# verify if without "keywords" is still accurate
+		# (tumor OR cancer OR bioinformatics)
+		"term": f"""(tumor OR cancer OR bioinformatics) AND
 			(
 				"Journal Article"[pt] OR
 				"Meta-Analysis"[pt] OR
@@ -19,24 +23,7 @@ def get_ids() -> list[str | None]:
 				"Systematic Review"[pt]
 			) AND
 			(
-				"Nature"[journal] OR
-				"Nature Medicine"[journal] OR
-				"Nature Cancer"[journal] OR
-				"Nature Communications"[journal] OR
-				"Nature Genetics"[journal] OR
-				"Nature Reviews Cancer"[journal] OR
-				"Nature Reviews Genetics"[journal] OR
-				"Cell"[journal] OR
-				"Cancer Cell"[journal] OR
-				"Cell Genomics"[journal] OR
-				"Cell Reports Medicine"[journal] OR
-				"Bioinformatics"[journal] OR
-				"Cancer Discovery"[journal] OR
-				"Cancer Research"[journal] OR
-				"Genome Medicine"[journal] OR
-				"Molecular Cancer Research"[journal] OR
-				"Science"[journal] OR
-				"Science Advances"[journal]
+				{journals}
 			) AND
 			("last 30 days"[pdat])""", #query - to be modified later to accept dynamic input
 		"datetype": "pdat", #pubblication date
@@ -47,16 +34,15 @@ def get_ids() -> list[str | None]:
 	if root is None:
 		logger.error("Failed to fetch PubMed IDs.")
 		return []
-	# logger.info(f"Number of articles found with keywords & journals: {root.findtext('.//Count')}")
 	return [id.text for id in root.findall(".//Id") if id.text]
 
 # get journal, title and abstract of articles with given ids
-def get_all_papers():
+def get_all_papers(ids):
 	"""Fetch journal, title, and abstract information for a list of PubMed IDs.
 	Returns a list of dictionaries with keys 'JOURNAL', 'TITLE', and 'ABSTRACT'.
 	Handles fetch and parse errors gracefully, skipping batches that fail."""
 	info = []
-	for batch in chunk_list(get_ids(), 100):
+	for batch in chunk_list(ids, 100):
 		if not batch:
 			continue
 		ids_str = ",".join(batch)
@@ -128,3 +114,25 @@ def get_journals_info():
 			info.append((journal.findtext(".//Title") or "Unknown Journal", batch[i]))
 		db.add_journals(info)
 		time.sleep(0.5) # to avoid hitting rate limits
+
+# I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data
+# I am a cancer researcher focusing on epigenetic and dna methylation
+
+# 			"Nature"[journal] OR
+# 			"Nature Medicine"[journal] OR
+# 			"Nature Cancer"[journal] OR
+# 			"Nature Communications"[journal] OR
+# 			"Nature Genetics"[journal] OR
+# 			"Nature Reviews Cancer"[journal] OR
+# 			"Nature Reviews Genetics"[journal] OR
+# 			"Cell"[journal] OR
+# 			"Cancer Cell"[journal] OR
+# 			"Cell Genomics"[journal] OR
+# 			"Cell Reports Medicine"[journal] OR
+# 			"Bioinformatics"[journal] OR
+# 			"Cancer Discovery"[journal] OR
+# 			"Cancer Research"[journal] OR
+# 			"Genome Medicine"[journal] OR
+# 			"Molecular Cancer Research"[journal] OR
+# 			"Science"[journal] OR
+# 			"Science Advances"[journal]

@@ -78,3 +78,9 @@ Abstract: {p.abstract}
 --------------------
 """
 	return text
+
+def format_journals(journals):
+	text = ""
+	for journal in journals.split("***"):
+		text += f'"{journal}"[journal] OR '
+	return text.strip(" OR ")

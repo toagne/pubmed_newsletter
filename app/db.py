@@ -21,7 +21,7 @@ def init_db():
 	cursor.execute("""
 		CREATE TABLE IF NOT EXISTS journals (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT UNIQUE NOT NULL,
+			name TEXT NOT NULL,
 			pmid TEXT UNIQUE NOT NULL
 		)
 	""")
