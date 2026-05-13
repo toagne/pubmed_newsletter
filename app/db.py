@@ -15,7 +15,8 @@ def init_db():
 			email TEXT UNIQUE NOT NULL,
 			query TEXT,
 			journals TEXT,
-			num_papers INTEGER
+			num_papers INTEGER,
+			receive_email BOOL
 		)
 	""")
 	cursor.execute("""
@@ -32,11 +33,11 @@ def add_user(email):
 	"""Add a new user query to the database."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
-	cursor.execute("INSERT INTO users (email) VALUES (?)", (email,))
+	cursor.execute("INSERT INTO users (email, receive_email) VALUES (?, ?)", (email, True))
 	conn.commit()
 	conn.close()
 
-def update_user_interests(journals_join_split, email, query=None, journals=None, num_papers=None):
+def update_user_interests(journals_join_split, email, query, journals, num_papers, receive_email):
 	"""Update the query and interests for an existing user in the database."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
@@ -51,6 +52,8 @@ def update_user_interests(journals_join_split, email, query=None, journals=None,
 	if num_papers:
 		updates.append("num_papers = ?")
 		params.append(num_papers)
+	updates.append("receive_email = ?")
+	params.append(receive_email)
 	params.append(email)
 	update_query = f"UPDATE users SET {', '.join(updates)} WHERE email = ?"
 	cursor.execute(update_query, tuple(params))

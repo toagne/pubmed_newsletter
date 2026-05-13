@@ -79,8 +79,8 @@ def handle_edit_research_interests():
 	journals_join_split = "***"
 	st.markdown("### Edit Your Research Interests")
 	with st.form(key='edit_research_interests_form'):
-		db_email, db_query, temp_db_journals, db_n_of_papers =db.get_user(st.session_state.pending_email)[1:]
-		db_journals = temp_db_journals.split(journals_join_split)
+		db_email, db_query, temp_db_journals, db_n_of_papers, db_receive_email = db.get_user(st.session_state.pending_email)[1:]
+		db_journals = temp_db_journals.split(journals_join_split) if temp_db_journals else None
 		st.text(db_email)
 		u_query = st.text_area("💬 Your Query", value=db_query if db_query else None, placeholder="Describe your query here..." if not db_query else None, )
 		# Sanitize user input to prevent potential issues
@@ -108,6 +108,8 @@ def handle_edit_research_interests():
 			st.error("❌ You need to select at least one Journal")
 		u_n_of_papers = st.slider("Number of papers to receive each month", min_value=10, max_value=100, value=db_n_of_papers if db_n_of_papers else 20, step=10)
 
+		u_receive_email = st.toggle("Receive_email", db_receive_email)
+
 		col1, col2 = st.columns(2)
 		with col1:
 			submit_button = st.form_submit_button(label='✅ Submit', use_container_width=True)
@@ -123,13 +125,7 @@ def handle_edit_research_interests():
 
 		if submit_button:
 			if u_journals and u_query:
-				db.update_user_interests(
-					journals_join_split=journals_join_split,
-					email=db_email,
-					query=u_query if u_query else None,
-					journals=u_journals if u_journals else None,
-					num_papers=u_n_of_papers if u_n_of_papers else None,
-				)
+				db.update_user_interests(journals_join_split, db_email, u_query, u_journals, u_n_of_papers, u_receive_email)
 				st.session_state.form_submitted = True
 				st.session_state.edit_research_interests = False
 				missing_values_for_new_user = False

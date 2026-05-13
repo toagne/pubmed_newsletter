@@ -13,7 +13,7 @@ def run_monthly_job():
 	# logging.info("Running monthly job to send emails to users.")
 	users = db.get_all_users()
 	llm_queries = {}
-	queries = [[u[0], u[2]] for u in users]
+	queries = [[u[0], u[2]] for u in users if u[5] == True]
 	for batch in chunk_list(queries, 10):
 		queries_payload = json.dumps({str(q[0]): q[1] for q in batch})
 		response = llm.analyze_with_llm(llm.USER_QUERY_ANALYSIS_PROMPT, queries_payload)
@@ -28,7 +28,9 @@ def run_monthly_job():
 	papers_cache = {}
 	fetched_paper_ids = set()
 	
-	for user_id, email, query, journals, n_of_papers in users:
+	for user_id, email, query, journals, n_of_papers, receive_email in users:
+		if receive_email == False:
+			continue
 		if llm_queries.get(str(user_id)).get('is_valid_research_query') == False:
 			# do something else here
 			continue
