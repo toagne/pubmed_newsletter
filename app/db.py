@@ -37,7 +37,7 @@ def add_user(email):
 	conn.commit()
 	conn.close()
 
-def update_user_interests(journals_join_split, email, query, journals, num_papers, receive_email):
+def update_user_interests(email, query, journals, num_papers, receive_email):
 	"""Update the query and interests for an existing user in the database."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
@@ -48,7 +48,7 @@ def update_user_interests(journals_join_split, email, query, journals, num_paper
 		params.append(query)
 	if journals:
 		updates.append("journals = ?")
-		params.append(journals_join_split.join(journals))
+		params.append(",".join(journals))
 	if num_papers:
 		updates.append("num_papers = ?")
 		params.append(num_papers)
@@ -99,7 +99,7 @@ def get_all_journals():
 	"""Fetch all journal names from the database and return them as a list."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
-	cursor.execute("SELECT name FROM journals ORDER BY name")
-	names = [row[0] for row in cursor.fetchall()]
+	cursor.execute("SELECT * FROM journals ORDER BY name")
+	journals = cursor.fetchall()
 	conn.close()
-	return names
+	return journals

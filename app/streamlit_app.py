@@ -76,11 +76,11 @@ def handle_enter_email():
 
 def handle_edit_research_interests():
 	missing_values_for_new_user = False
-	journals_join_split = "***"
 	st.markdown("### Edit Your Research Interests")
 	with st.form(key='edit_research_interests_form'):
-		db_email, db_query, temp_db_journals, db_n_of_papers, db_receive_email = db.get_user(st.session_state.pending_email)[1:]
-		db_journals = temp_db_journals.split(journals_join_split) if temp_db_journals else None
+		_, db_email, db_query, db_journals, db_n_of_papers, db_receive_email = db.get_user(st.session_state.pending_email)
+		db_journals = db_journals.split(",") if db_journals else None
+		journals_dict = {j[2]: j[1] for j in db.get_all_journals()}
 		st.text(db_email)
 		u_query = st.text_area("💬 Your Query", value=db_query if db_query else None, placeholder="Describe your query here..." if not db_query else None, )
 		# Sanitize user input to prevent potential issues
@@ -102,8 +102,15 @@ def handle_edit_research_interests():
 		elif u_query and detect(u_query) != "en":
 			st.error("❌ You need to use english for the query")
 			u_query = None
-		all_journals = db.get_all_journals()
-		u_journals = st.multiselect("Journals", all_journals, filter_mode="contains", default=db_journals if db_journals else None, max_selections=50)
+
+		u_journals = st.multiselect(
+			label="Journals",
+			options=list(journals_dict.keys()),
+			default=db_journals,
+			format_func=lambda x: journals_dict[x],
+			filter_mode="contains",
+			max_selections=50
+		)
 		if not u_journals:
 			st.error("❌ You need to select at least one Journal")
 		u_n_of_papers = st.slider("Number of papers to receive each month", min_value=10, max_value=100, value=db_n_of_papers if db_n_of_papers else 20, step=10)
@@ -125,7 +132,7 @@ def handle_edit_research_interests():
 
 		if submit_button:
 			if u_journals and u_query:
-				db.update_user_interests(journals_join_split, db_email, u_query, u_journals, u_n_of_papers, u_receive_email)
+				db.update_user_interests(db_email, u_query, u_journals, u_n_of_papers, u_receive_email)
 				st.session_state.form_submitted = True
 				st.session_state.edit_research_interests = False
 				missing_values_for_new_user = False
