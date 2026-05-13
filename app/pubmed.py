@@ -4,19 +4,16 @@ import time
 from app import llm
 
 # get ids of articles with given keywords and date
-def get_ids(journals, query) -> list[str | None]:
+def get_ids(journals, keywords) -> list[str | None]:
 	"""Fetch PubMed IDs based on a complex query that includes keywords, journal filters, and publication date.
 	Returns a list of PubMed IDs as strings, or an empty list if the fetch or parsing fails.
 	Note: The query is currently hardcoded to search for recent articles related to tumors, cancer, or bioinformatics in specific high-impact journals. This can be modified to accept dynamic input in the future."""
 	search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-	keywords = "(tumor OR cancer OR bioinformatics)"
-	# keywords = " OR ".join(llm.analyze_with_llm(llm.PUBMED_PROMPT, query))
-	journals = format_journals(journals)
+	keywords_str = " OR ".join(keywords)
+	journals_str = format_journals(journals)
 	search_params = {
 		"db": "pubmed", #database
-		# verify if without "keywords" is still accurate
-		# (tumor OR cancer OR bioinformatics)
-		"term": f"""{keywords} AND
+		"term": f"""{keywords_str} AND
 			(
 				"Journal Article"[pt] OR
 				"Meta-Analysis"[pt] OR
@@ -25,7 +22,7 @@ def get_ids(journals, query) -> list[str | None]:
 				"Systematic Review"[pt]
 			) AND
 			(
-				{journals}
+				{journals_str}
 			) AND
 			("last 30 days"[pdat])""",
 		"datetype": "pdat", #pubblication date
