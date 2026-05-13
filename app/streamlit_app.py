@@ -4,6 +4,7 @@ import random
 from app.emailer import send_email
 import time
 import re
+from langdetect import detect
 
 def generate_number():
 	"""Generate a random 6-digit number as a string."""
@@ -86,11 +87,20 @@ def handle_edit_research_interests():
 		u_query = u_query.strip() if u_query else None
 		if not u_query:
 			st.error("❌ You need to to enter a query")
-		if u_query and len(u_query) > 1000:  # Limit query length to 1000 characters
+		elif bool(re.match(r'^(?=.*[A-Za-z0-9])[A-Za-z0-9() .,:]+$', u_query)) == False:
+			st.error("❌ You need to to enter a valid query, only alphanumeric and ().,: characters are allowd")
+			u_query = None
+		elif len(u_query.split(" ")) < 5:
+			st.error("❌ Please enter a longer query")
+			u_query = None
+		elif u_query and len(u_query) > 1000:  # Limit query length to 1000 characters
 			st.error("❌ Query is too long. Please limit to 1000 characters.")
 			u_query = None
-		if u_query and re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', u_query, re.IGNORECASE):
+		elif u_query and re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', u_query, re.IGNORECASE):
 			st.error("❌ Query contains potentially harmful SQL-like keywords. Please enter a valid research query.")
+			u_query = None
+		elif u_query and detect(u_query) != "en":
+			st.error("❌ You need to use english for the query")
 			u_query = None
 		all_journals = db.get_all_journals()
 		u_journals = st.multiselect("Journals", all_journals, filter_mode="contains", default=db_journals if db_journals else None)
