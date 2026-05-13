@@ -96,7 +96,7 @@ def get_all_journals():
 	"""Fetch all journal names from the database and return them as a list."""
 	conn = sqlite3.connect(DB_PATH)
 	cursor = conn.cursor()
-	cursor.execute("SELECT name FROM journals")
+	cursor.execute("SELECT name FROM journals ORDER BY name")
 	names = [row[0] for row in cursor.fetchall()]
 	conn.close()
 	return names

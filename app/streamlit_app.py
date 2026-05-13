@@ -103,7 +103,7 @@ def handle_edit_research_interests():
 			st.error("❌ You need to use english for the query")
 			u_query = None
 		all_journals = db.get_all_journals()
-		u_journals = st.multiselect("Journals", all_journals, filter_mode="contains", default=db_journals if db_journals else None)
+		u_journals = st.multiselect("Journals", all_journals, filter_mode="contains", default=db_journals if db_journals else None, max_selections=50)
 		if not u_journals:
 			st.error("❌ You need to select at least one Journal")
 		u_n_of_papers = st.slider("Number of papers to receive each month", min_value=10, max_value=100, value=db_n_of_papers if db_n_of_papers else 20, step=10)
