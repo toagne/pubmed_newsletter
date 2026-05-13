@@ -32,9 +32,10 @@ def get_best_papers(query, papers, n_of_papers):
 	results = vectorstore.similarity_search(query, k=n_of_papers)
 	return [paper_by_pmid[result.metadata["pmid"]] for result in results if result.metadata.get("pmid") in paper_by_pmid]
 
-def run_pipeline(query, papers, n_of_papers):
-	best_papers_with_faiss = get_best_papers(query, papers, n_of_papers)
+def run_pipeline(similarity_search_query, user_query, papers, n_of_papers):
+	# !! ATTENTION query for similarity search and user query are different 
+	best_papers_with_faiss = get_best_papers(similarity_search_query, papers, n_of_papers)
 	return best_papers_with_faiss
-	# best_papers_with_llm = analyze_papers(best_papers_with_faiss, query)
+	# best_papers_with_llm = analyze_papers(best_papers_with_faiss, user_query)
 	# return format_email(best_papers_with_faiss)
 	# return format_email(best_papers_with_llm)
