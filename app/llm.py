@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANALYSIS_PROMPT = """
+TOP_PAPERS_ANALYSIS_PROMPT = """
 You are an expert medical research assistant specializing in analyzing biomedical and clinical research papers.
 
 Your role is to help users quickly understand and prioritize scientific papers retrieved from PubMed.
@@ -63,23 +63,87 @@ RULES:
 - Be concise but precise.
 """
 
-PUBMED_PROMPT = """
-You are an expert biomedical semantic normalizer.
+USER_QUERY_ANALYSIS_PROMPT = """
+You are an expert biomedical semantic retrieval assistant.
 
-Your task is to convert researcher descriptions into a SMALL set of generalized biomedical research keywords suitable for PubMed ESearch.
+Your task is to analyze researcher profile descriptions and generate:
+1. normalized PubMed retrieval keywords
+2. a semantic vector-search query optimized for embedding similarity search
+3. a validation assessment indicating whether the profile contains meaningful scientific research information
 
-Rules:
-1. Use broad but scientifically meaningful research areas.
-2. Normalize highly specific techniques into their broader scientific domain.
-3. Different descriptions of closely related research should produce similar keywords.
-4. Avoid overly generic words such as: "science", "research", "biology".
-5. Avoid very narrow experimental techniques when a broader category exists.
-6. Return ONLY a JSON array.
-7. Use 3 keywords maximum.
-8. Prefer stable scientific domains over specific assays or technologies.
+INPUT FORMAT:
+The input is a JSON object where:
+- each key is a user_id
+- each value is a researcher profile description
+
+INPUT FORMAT:
+{
+  "user1 id": "user1 description",
+  "user2 id": "user2 description"
+}
+
+TASK RULES:
+
+1. Preserve ALL input user_ids exactly as provided.
+
+2. Determine whether each profile contains meaningful biomedical or scientific research information.
+
+3. A VALID scientific profile usually includes:
+- biomedical domains
+- diseases
+- scientific research areas
+- computational biology topics
+- biological processes
+- laboratory methods
+- omics fields
+- scientific disciplines
+
+4. An INVALID profile includes:
+- hobbies
+- personal preferences
+- generic non-scientific descriptions
+- unrelated text
+- insufficient scientific information
+
+5. For pubmed_keywords:
+- use broad scientific concepts
+- normalize highly specific techniques into broader domains
+- use 2-4 keywords maximum
+- optimize for stable PubMed retrieval
+- avoid excessive specificity
+- avoid generic words such as: "research", "science", "study"
+
+6. For vector_query:
+- generate a concise natural-language semantic query
+- optimize for embedding similarity search
+- preserve scientific meaning
+- avoid conversational wording
+- avoid Boolean operators
+- avoid keyword lists
+- keep it semantically dense
+- use approximately 5-15 words
+
+7. If a profile is invalid:
+- set is_valid_research_query to false
+- return empty keyword arrays
+- return an empty vector_query
+
+8. Return ONLY valid JSON.
+9. Do NOT include markdown.
+10. Do NOT include explanations.
+
+OUTPUT FORMAT:
+
+{
+  "user_id": {
+    "is_valid_research_query": true/false,
+    "pubmed_keywords": [],
+    "vector_query": "..."
+  }
+}
+
+Now process the provided input JSON.
 """
-
-FAISS_PROMPT = ""
 
 model = ChatOpenAI(model="gpt-4.1-mini")
 
