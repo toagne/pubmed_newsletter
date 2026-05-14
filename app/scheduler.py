@@ -2,7 +2,7 @@ from app import db
 from app.emailer import send_email
 from app import pubmed
 from app.pipeline import run_pipeline
-from app.utils import chunk_list
+from app.utils import chunk_list, get_last_month
 from app import llm
 import logging
 import json
@@ -27,6 +27,8 @@ def run_monthly_job():
 	pubmed.get_journals_info() # to keep the journals info updated in the database
 	papers_cache = {}
 	fetched_paper_ids = set()
+	last_month = get_last_month()
+	# subject = "Your breaking news from the scientific world"
 	
 	for user_id, email, query, journals, n_of_papers, receive_email in users:
 		if receive_email == False:
@@ -35,7 +37,7 @@ def run_monthly_job():
 			# do something else here
 			continue
 		pubmed_keywords = llm_queries.get(str(user_id)).get('pubmed_keywords')
-		user_papers_ids = set(pubmed.get_ids(journals, pubmed_keywords))
+		user_papers_ids = set(pubmed.get_ids(journals, pubmed_keywords, last_month))
 		# Find which papers we've already fetched
 		new_ids = user_papers_ids - fetched_paper_ids
 		# Fetch only new papers from PubMed
@@ -46,9 +48,9 @@ def run_monthly_job():
 			fetched_paper_ids.update(new_ids)
 		# Build user's papers list from cache (both cached and newly fetched)
 		user_papers = [papers_cache[pid] for pid in user_papers_ids if pid in papers_cache]
-		# subject = f"Monthly Update on your query: {query}"
+		
 		similarity_search_query = llm_queries.get(str(user_id)).get('vector_query')
 		body = run_pipeline(similarity_search_query, query, user_papers, n_of_papers)
-		# send_email(email, subject, body)
+		# send_email(email, subject, body, last_month)
 	
 	# logging.info("Monthly job completed. Emails sent to all users.")

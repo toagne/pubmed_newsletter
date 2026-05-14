@@ -11,7 +11,7 @@ load_dotenv()
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
 
-def send_email(to, subject, content, send_email=True):
+def send_email(to, subject, content, last_month, send_email=True):
 	# Placeholder function to send an email
 	msg = EmailMessage()
 	msg['Subject'] = subject
@@ -56,12 +56,13 @@ def send_email(to, subject, content, send_email=True):
 		doc.build(elements)
 		buffer.seek(0)
 		pdf_bytes = buffer.read()
+		year, month = last_month.split("/")
 		if send_email:
 			msg.add_attachment(
 				pdf_bytes,
 				maintype="application",
 				subtype="pdf",
-				filename="info.pdf"
+				filename=f"Literature Update_{year}_{month}.pdf"
 			)
 		else:
 			with open(f"{to}.pdf", "wb") as f:

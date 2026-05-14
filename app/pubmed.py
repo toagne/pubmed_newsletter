@@ -1,10 +1,9 @@
 from app.utils import fetch_xml, logger, chunk_list, Paper, format_journals
 from app import db
 import time
-from app import llm
 
 # get ids of articles with given keywords and date
-def get_ids(journals, keywords) -> list[str | None]:
+def get_ids(journals, keywords, last_month) -> list[str | None]:
 	"""Fetch PubMed IDs based on a complex query that includes keywords, journal filters, and publication date.
 	Returns a list of PubMed IDs as strings, or an empty list if the fetch or parsing fails.
 	Note: The query is currently hardcoded to search for recent articles related to tumors, cancer, or bioinformatics in specific high-impact journals. This can be modified to accept dynamic input in the future."""
@@ -23,8 +22,9 @@ def get_ids(journals, keywords) -> list[str | None]:
 			) AND
 			(
 				{journals_str}
-			) AND
-			("last 30 days"[pdat])""",
+			)""",
+		"mindate": last_month,
+		"maxdate": last_month,
 		"datetype": "pdat", #pubblication date
 		"sort": "relevance", #sort by relevance
 		"retmax": 1000, #number of results - to keep it manageable for testing, can be increased later

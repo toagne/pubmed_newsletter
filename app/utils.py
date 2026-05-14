@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import logging
 import math
 from dataclasses import dataclass
+from datetime import timedelta, date
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -84,3 +85,8 @@ def format_journals(journals):
 	for journal in journals.split("***"):
 		text += f'"{journal}"[journal] OR '
 	return text.strip(" OR ")
+
+def get_last_month():
+	today = date.today()
+	last_month = today - (timedelta(days=today.day + 1))
+	return f"{last_month.year}/{last_month.month if last_month.month > 9 else f"0{last_month.month}"}"
