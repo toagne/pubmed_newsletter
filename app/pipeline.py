@@ -13,7 +13,7 @@ def analyze_papers(papers, query, batch_size=10):
 	Returns a list of dictionaries containing the analysis results for all papers.
 	The function formats each batch of papers with the user query, sends it to the agent, and collects the results. It handles JSON parsing errors gracefully, skipping batches that fail to produce valid JSON output."""
 	all_results = []
-	for batch in chunk_list(papers, batch_size):
+	for batch in chunk_list(papers, batch_size, analyze_papers.__name__):
 		content = format_batch(batch, query)
 		response = analyze_with_llm(content)
 		try:

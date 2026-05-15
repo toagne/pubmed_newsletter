@@ -41,7 +41,7 @@ def get_all_papers(ids):
 	Returns a list of dictionaries with keys 'JOURNAL', 'TITLE', and 'ABSTRACT'.
 	Handles fetch and parse errors gracefully, skipping batches that fail."""
 	info = []
-	for batch in chunk_list(ids, 100):
+	for batch in chunk_list(ids, 100, get_all_papers.__name__):
 		if not batch:
 			continue
 		ids_str = ",".join(batch)
@@ -133,7 +133,7 @@ def look_for_journals_not_in_db():
 	return list(new_journals)
 
 def get_journals_info():
-	for batch in chunk_list(look_for_journals_not_in_db(), 100):
+	for batch in chunk_list(look_for_journals_not_in_db(), 100, get_journals_info.__name__):
 		if not batch:
 			continue
 		info = []

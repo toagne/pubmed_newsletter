@@ -40,13 +40,13 @@ def fetch_xml(url, params):
 		return None
 
 # split list into batches
-def chunk_list(data, size, verbose=True):
+def chunk_list(data, size, caller_function, verbose=True):
 	"""Yield successive batches of a list with progress indication."""
 	n = 1
 	tot = math.ceil(len(data) / size)
 	for i in range(0, len(data), size):
 		if verbose:
-			logger.info(f"Processing batch {n}/{tot}")
+			logger.info(f"{caller_function} - Processing batch {n}/{tot}")
 		n+=1
 		yield data[i:i + size]
 	print()

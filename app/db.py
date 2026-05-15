@@ -103,3 +103,15 @@ def get_all_journals():
 	journals = cursor.fetchall()
 	conn.close()
 	return journals
+
+def get_journal_names_using_pmid(pmids):
+	if not pmids:
+		return []
+	conn = sqlite3.connect(DB_PATH)
+	cursor = conn.cursor()
+	placeholders = ",".join(["?"] * len(pmids))
+	query = f"SELECT name FROM journals WHERE pmid IN ({placeholders})"
+	cursor.execute(query, tuple(pmids))
+	rows = cursor.fetchall()
+	conn.close()
+	return [row[0] for row in rows]
