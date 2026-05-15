@@ -80,11 +80,11 @@ Abstract: {p.abstract}
 """
 	return text
 
-def format_journals(journals):
-	text = ""
-	for journal in journals.split("***"):
-		text += f'"{journal}"[journal] OR '
-	return text.strip(" OR ")
+def format_params(data, data_type=""):
+	data = [f'"{d}"' for d in data]
+	data_str = f"{data_type} OR ".join(data)
+	data_str += data_type
+	return data_str
 
 def get_last_month():
 	today = date.today()

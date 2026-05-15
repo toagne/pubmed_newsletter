@@ -67,7 +67,7 @@ Journals:
 Number of papers: {n_of_papers}
 """)
 
-		pdf_bytes = create_pdf()
+		pdf_bytes = create_pdf(content)
 		year, month = last_month.split("/")
 		if send_email:
 			msg.add_attachment(

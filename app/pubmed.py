@@ -1,28 +1,19 @@
-from app.utils import fetch_xml, logger, chunk_list, Paper, format_journals
+from app.utils import fetch_xml, logger, chunk_list, Paper, format_params
 from app import db
 import time
 
 # get ids of articles with given keywords and date
-def get_ids(journals, keywords, last_month) -> list[str | None]:
+def get_ids(journals, keywords, pub_types, last_month) -> list[str | None]:
 	"""Fetch PubMed IDs based on a complex query that includes keywords, journal filters, and publication date.
 	Returns a list of PubMed IDs as strings, or an empty list if the fetch or parsing fails.
 	Note: The query is currently hardcoded to search for recent articles related to tumors, cancer, or bioinformatics in specific high-impact journals. This can be modified to accept dynamic input in the future."""
 	search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-	keywords_str = " OR ".join(keywords)
-	journals_str = format_journals(journals)
+	keywords_str = format_params(keywords)
+	journals_str = format_params(journals, "[journal]")
+	pub_types_str = format_params(pub_types, "[pt]")
 	search_params = {
 		"db": "pubmed", #database
-		"term": f"""{keywords_str} AND
-			(
-				"Journal Article"[pt] OR
-				"Meta-Analysis"[pt] OR
-				"Preprint"[pt] OR
-				"Review"[pt] OR
-				"Systematic Review"[pt]
-			) AND
-			(
-				{journals_str}
-			)""",
+		"term": f"({keywords_str}) AND ({pub_types_str}) AND ({journals_str})",
 		"mindate": last_month,
 		"maxdate": last_month,
 		"datetype": "pdat", #pubblication date

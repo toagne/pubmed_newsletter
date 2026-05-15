@@ -26,6 +26,7 @@ def adapt_queries_with_llm(users):
 
 def run_monthly_job():
 	logging.info("Running monthly job to send emails to users.")
+	pub_types = ["Journal Article", "Meta-Analysis", "Preprint", "Review", "Systematic Review"]
 	users = db.get_all_users()
 	pubmed.get_journals_info() # to keep the journals info updated in the database
 	if not users:
@@ -38,9 +39,11 @@ def run_monthly_job():
 	
 	for user_id, email, query, journals, n_of_papers, receive_email in users:
 		if receive_email:
+			logging.info(f"Processing user {email}")
 			if llm_queries.get(str(user_id)).get('is_valid_research_query'):
 				pubmed_keywords = llm_queries.get(str(user_id)).get('pubmed_keywords')
-				user_papers_ids = set(pubmed.get_ids(journals, pubmed_keywords, last_month))
+				journals_name = db.get_journal_names_using_pmid(journals.split(","))
+				user_papers_ids = set(pubmed.get_ids(journals_name, pubmed_keywords, pub_types, last_month))
 				# Find which papers we've already fetched
 				new_ids = user_papers_ids - fetched_paper_ids
 				# Fetch only new papers from PubMed
@@ -54,10 +57,11 @@ def run_monthly_job():
 				
 				similarity_search_query = llm_queries.get(str(user_id)).get('vector_query')
 				body = run_pipeline(similarity_search_query, query, user_papers, n_of_papers)
-				journals_name = db.get_journal_names_using_pmid(journals.split(","))
 				body.append([query, journals_name, n_of_papers, last_month])
 			else:
 				body = "Profile contains no or not enough scientific research information. Please improve your research description."
-			send_email(email, subject, body, False)
+			logging.info(f"Sending email to {email}")
+			send_email(email, subject, body)
+			logging.info(f"Email succesfully sent to {email}")
 
 	logging.info("Monthly job completed. Emails sent to all users.")
