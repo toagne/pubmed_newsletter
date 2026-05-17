@@ -101,7 +101,7 @@ def get_all_papers(ids):
 				authors=authors,
 				abstract=abstract
 			))
-		time.sleep(0.5) # to avoid hitting rate limits
+		time.sleep(1) # to avoid hitting rate limits
 	return info
 
 def get_journals_id():
@@ -142,7 +142,7 @@ def get_journals_info():
 		for i, journal in enumerate(root.findall(".//NLMCatalogRecord")):
 			info.append((journal.findtext(".//Title") or "Unknown Journal", batch[i]))
 		db.add_journals(info)
-		time.sleep(0.5) # to avoid hitting rate limits
+		time.sleep(1) # to avoid hitting rate limits
 
 # I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data
 # I am a cancer researcher focusing on epigenetic and dna methylation
