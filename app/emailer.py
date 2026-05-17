@@ -47,28 +47,26 @@ def create_pdf(content):
 	buffer.seek(0)
 	return buffer.read()
 
-def send_email(to, subject, content, send_email=True):
+def send_email(to, subject, body, papers=None):
 	msg = EmailMessage()
 	msg['Subject'] = subject
 	msg['From'] = GMAIL_USER
 	msg['To'] = to
-	if type(content).__name__ == "str":
-		msg.set_content(content)
-	elif type(content).__name__ == "list":
-		query, journals, n_of_papers, last_month = content[-1]
+	if papers:
 		msg.set_content(f"""
 In the attachment you can find the literature update for the last month.
 
 Here you have a recap of the research interest details you selected:
 
-Descritpion: {query}
+Description: {body["Description"]}
 Journals:
-{"\n".join(f"- {j}" for j in journals)}
-Number of papers: {n_of_papers}
+{"\n".join(f"- {j}" for j in body["Journals"])}
+Number of papers: {body["N of papers"]}
+Pub Types: {", ".join(body["Pub types"])} (this is a fixed parameter)
 """)
 
-		pdf_bytes = create_pdf(content)
-		year, month = last_month.split("/")
+		pdf_bytes = create_pdf(papers)
+		year, month = body["Date"].split("/")
 		if send_email:
 			msg.add_attachment(
 				pdf_bytes,
@@ -79,6 +77,8 @@ Number of papers: {n_of_papers}
 		else:
 			with open(f"Literature Update_{year}_{month}_{to}.pdf", "wb") as f:
 				f.write(pdf_bytes)
+	else:
+		msg.set_content(body)
 
 	if send_email:
 		with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:

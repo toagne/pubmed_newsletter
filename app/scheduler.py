@@ -42,8 +42,8 @@ def run_monthly_job():
 			logging.info(f"Processing user {email}")
 			if llm_queries.get(str(user_id)).get('is_valid_research_query'):
 				pubmed_keywords = llm_queries.get(str(user_id)).get('pubmed_keywords')
-				journals_name = db.get_journal_names_using_pmid(journals.split(","))
-				user_papers_ids = set(pubmed.get_ids(journals_name, pubmed_keywords, pub_types, last_month))
+				journals_names = db.get_journal_names_using_pmid(journals.split(","))
+				user_papers_ids = set(pubmed.get_ids(journals_names, pubmed_keywords, pub_types, last_month))
 				# Find which papers we've already fetched
 				new_ids = user_papers_ids - fetched_paper_ids
 				# Fetch only new papers from PubMed
@@ -56,12 +56,18 @@ def run_monthly_job():
 				user_papers = [papers_cache[pid] for pid in user_papers_ids if pid in papers_cache]
 				
 				similarity_search_query = llm_queries.get(str(user_id)).get('vector_query')
-				body = run_pipeline(similarity_search_query, query, user_papers, n_of_papers)
-				body.append([query, journals_name, n_of_papers, last_month])
+				best_papers = run_pipeline(similarity_search_query, query, user_papers, n_of_papers)
+				body = {
+					"Description": query,
+					"Journals": journals_names,
+					"N of papers": n_of_papers,
+					"Date": last_month,
+					"Pub types": pub_types
+				}
 			else:
 				body = "Profile contains no or not enough scientific research information. Please improve your research description."
 			logging.info(f"Sending email to {email}")
-			send_email(email, subject, body)
+			send_email(email, subject, body, best_papers)
 			logging.info(f"Email succesfully sent to {email}")
 
 	logging.info("Monthly job completed. Emails sent to all users.")
