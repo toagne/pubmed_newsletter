@@ -52,26 +52,37 @@ class TestMain(unittest.TestCase):
 		mock_root.findall.return_value = [mock_id1, mock_id2]
 		mock_fetch.return_value = mock_root
 
-		result = get_ids()
+		result = get_ids(None, None, None, None)
 		self.assertEqual(result, ['12345', '67890'])
 
 	@patch('app.pubmed.fetch_xml')
 	def test_get_ids_failure(self, mock_fetch):
 		"""Test get_ids handles fetch failure."""
 		mock_fetch.return_value = None
-		result = get_ids()
+		result = get_ids(None, None, None, None)
 		self.assertEqual(result, [])
 
 	def test_chunk_list(self):
 		"""Test chunk_list function."""
 		data = [1, 2, 3, 4, 5]
-		chunks = list(chunk_list(data, 2, verbose=False))
+		chunks = list(chunk_list(data, 2, "", verbose=False))
 		self.assertEqual(chunks, [[1, 2], [3, 4], [5]])
 
 	def test_paper_dataclass(self):
 		"""Test Paper dataclass creation."""
-		paper = Paper(pmid='123', journal='Nature', title='Test Title', abstract='Test Abstract')
+		paper = Paper(
+			pmid='123',
+			doi='456',
+			journal='Nature',
+			journal_type='Journal Article',
+			publication_date='2026 Apr 02',
+			title='Test Title',
+			authors='Author1, Author2',
+			abstract='Test Abstract'
+		)
 		self.assertEqual(paper.pmid, '123')
+		self.assertEqual(paper.doi, '456')
+		self.assertEqual(paper.journal, 'Nature')
 		self.assertEqual(paper.journal, 'Nature')
 		self.assertEqual(paper.title, 'Test Title')
 		self.assertEqual(paper.abstract, 'Test Abstract')
@@ -112,7 +123,7 @@ class TestMain(unittest.TestCase):
 			'.//AbstractText': [mock_abstract_part]
 		}.get(path, [])
 
-		result = get_all_papers()
+		result = get_all_papers(None)
 		self.assertEqual(len(result), 1)
 		self.assertIsInstance(result[0], Paper)
 		self.assertEqual(result[0].pmid, '12345')

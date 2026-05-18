@@ -72,6 +72,8 @@ Abstract: {p.abstract}
 	return text
 
 def format_params(data, data_type=""):
+	if not data:
+		return ""
 	data = [f'"{d}"' for d in data]
 	data_str = f"{data_type} OR ".join(data)
 	data_str += data_type
