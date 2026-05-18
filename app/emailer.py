@@ -11,12 +11,12 @@ load_dotenv()
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
 
-def create_pdf(content):
+def create_pdf(papers):
 	buffer = io.BytesIO()
 	doc = SimpleDocTemplate(buffer)
 	styles = getSampleStyleSheet()
 	elements = []
-	for i, p in enumerate(content[:-1], 1):
+	for i, p in enumerate(papers, 1):
 		text = f"""
 		<b>Paper {i}</b><br/>
 		<b>PMID:</b> {p.pmid}<br/>
@@ -29,8 +29,8 @@ def create_pdf(content):
 		"""
 		if p.summary:
 			text += f"""
-			<b>Summary:</b><br/>
-			{p.title}
+			<b>Summary:</b>
+			{p.summary}<br/>
 			<b>Relevance score:</b> {p.relevance_score}<br/>
 			<b>Relevance explanation:</b> {p.relevance_explanation}<br/>
 			"""

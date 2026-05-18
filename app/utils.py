@@ -53,19 +53,10 @@ def chunk_list(data, size, caller_function, verbose=True):
 
 # format the batch of articles and the query into a string to be sent to the agent
 def format_batch(papers, query):
-	"""Format a batch of papers and a user query into a structured string for agent processing.
-	Returns a string that includes the user query followed by a numbered list of papers with their journal, title, and abstract.
-	The format is designed to be clear and consistent for the agent to analyze effectively."""
-	text = f"User query:\n{query}\n\nPapers:\n"
-	for i, p in enumerate(papers, 1):
-		text += f"""
-Paper {i}
-PMID: {p.pmid}
-Abstract: {p.abstract}
---------------------
-"""
-	text += "Return the result strictly as valid JSON as specified."
-	return text
+	res = {}
+	res["query"] = query
+	res["papers"] = {str(p.pmid): p.abstract for p in papers}
+	return res
 
 def format_email(papers):
 	text = ""

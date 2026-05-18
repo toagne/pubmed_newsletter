@@ -4,25 +4,34 @@ from langchain_core.documents import Document
 
 import json
 
-from app.utils import chunk_list, format_batch, format_email, logger, Paper
-from app.llm import analyze_with_llm
+from app.utils import chunk_list, format_batch, logger
+from app import llm
 
 # analyze the papers with the agent and return the results as a list of dictionaries
 def analyze_papers(papers, query, batch_size=10):
-	"""Analyze a list of papers using an agent, processing them in batches.
-	Returns a list of dictionaries containing the analysis results for all papers.
-	The function formats each batch of papers with the user query, sends it to the agent, and collects the results. It handles JSON parsing errors gracefully, skipping batches that fail to produce valid JSON output."""
-	all_results = []
+	llm_res = {}
 	for batch in chunk_list(papers, batch_size, analyze_papers.__name__):
 		content = format_batch(batch, query)
-		response = analyze_with_llm(content)
+		response = llm.analyze_with_llm(llm.TOP_PAPERS_ANALYSIS_PROMPT, json.dumps(content))
 		try:
 			batch_result = json.loads(response)
-			all_results.extend(batch_result)
+			llm_res.update(batch_result)
 		except json.JSONDecodeError:
 			logger.error("Skipping batch due to json error")
 			continue
-	return all_results
+	papers_by_pmid = {str(p.pmid): p for p in papers}
+	for pmid, analysis in llm_res.items():
+		paper = papers_by_pmid.get(str(pmid))
+		if not paper:
+			continue
+		paper.summary = analysis.get("summary", "")
+		paper.relevance_score = analysis.get("relevance_score", 0)
+		paper.relevance_explanation = analysis.get("relevance_explanation", "")
+	papers.sort(
+		key=lambda p: p.relevance_score,
+		reverse=True
+	)
+	return papers
 
 def get_best_papers(query, papers, n_of_papers):
 	paper_by_pmid = {p.pmid: p for p in papers}
@@ -34,8 +43,7 @@ def get_best_papers(query, papers, n_of_papers):
 
 def run_pipeline(similarity_search_query, user_query, papers, n_of_papers):
 	# !! ATTENTION query for similarity search and user query are different 
-	best_papers_with_faiss = get_best_papers(similarity_search_query, papers, n_of_papers)
-	return best_papers_with_faiss
-	# best_papers_with_llm = analyze_papers(best_papers_with_faiss, user_query)
-	# return format_email(best_papers_with_faiss)
-	# return format_email(best_papers_with_llm)
+	best_papers_with_similarity_search = get_best_papers(similarity_search_query, papers, n_of_papers)
+	# return best_papers_with_similarity_search
+	best_papers_with_llm = analyze_papers(best_papers_with_similarity_search, user_query)
+	return best_papers_with_llm
