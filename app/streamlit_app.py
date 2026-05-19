@@ -31,16 +31,15 @@ Keeping up with scientific literature is difficult. Thousands of papers are publ
 **How It Works**
 - *Create your profile*  
 Tell us about your research interests, background, current projects, and topics you care about.
-- *Select your journals and sources*  
-Choose the journals, conferences, or article sources you want us to monitor.
+- *Select your journals*  
+Choose the journals you want us to monitor and the number of articles you want to receive.
 - *Monthly AI-powered filtering*  
 Each month, the system collects newly published articles from your selected sources and evaluates how relevant they are to your profile.
 - *Receive your personalized research digest*  
 You’ll receive an email containing:
-  - The top 100 most relevant papers
+  - The most relevant papers details
   - A relevance score for each article
   - A short AI-generated summary
-  - Direct links to the original publications
 
 The goal is simple: help you spend less time searching and more time reading the papers that actually matter to your work.
 """)
@@ -186,8 +185,8 @@ def show_verification():
 			st.error("❌ Invalid verification code. Please try again.")
 
 def main():
-	st.set_page_config(page_title="Query Submission", layout="centered")
-	st.title("Stay Current With the Research That Matters to You")
+	st.set_page_config(page_title="Research Newsletter", layout="centered")
+	st.title("Your breaking news from the scientific world")
 
 	# Initialize session states
 	if 'enter_email' not in st.session_state:
