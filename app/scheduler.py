@@ -40,7 +40,7 @@ def run_monthly_job():
 	
 	for user in users:
 		if user["receive_email"]:
-			logging.info(f"Processing user {user['email']}")
+			logging.info(f"Processing user id {user['id']}")
 			if llm_queries.get(str(user["id"])).get('is_valid_research_query'):
 				pubmed_keywords = llm_queries.get(str(user["id"])).get('pubmed_keywords')
 				journals_names = db.get_journal_names_using_pmid(user["journals"])
@@ -67,8 +67,8 @@ def run_monthly_job():
 				}
 			else:
 				body = "Profile contains no or not enough scientific research information. Please improve your research description."
-			logging.info(f"Sending email to {user['email']}")
+			logging.info(f"Sending email to user id {user['id']}")
 			send_email(user["email"], subject, body, best_papers)
-			logging.info(f"Email succesfully sent to {user['email']}")
+			logging.info(f"Email succesfully sent to user id {user['id']}")
 
 	logging.info("Monthly job completed. Emails sent to all users.")
