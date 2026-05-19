@@ -14,6 +14,10 @@ def send_verification_email(to_email, number):
 	"""Send verification code to the user's email to check if the email is valid."""
 	send_email(to_email, "Your Verification Code", f"Your verification code is: {number}")
 
+@st.cache_data(ttl=604800) # 7 days
+def cached_journals():
+	return db.get_all_journals()
+
 def show_instructions():
 	st.markdown("""
 Keeping up with scientific literature is difficult. Thousands of papers are published every month across journals, preprint servers, and research communities. This tool helps you discover the articles most relevant to your work — automatically.
@@ -78,11 +82,11 @@ def handle_edit_research_interests():
 	missing_values_for_new_user = False
 	st.markdown("### Edit Your Research Interests")
 	with st.form(key='edit_research_interests_form'):
-		_, db_email, db_query, db_journals, db_n_of_papers, db_receive_email = db.get_user(st.session_state.pending_email)
-		db_journals = db_journals.split(",") if db_journals else None
-		journals_dict = {j[2]: j[1] for j in db.get_all_journals()}
-		st.text(db_email)
-		u_query = st.text_area("💬 Your Query", value=db_query if db_query else None, placeholder="Describe your query here..." if not db_query else None, )
+		db_user = db.get_user(st.session_state.pending_email)
+		journals = cached_journals()
+		journals_dict = {j["pmid"]: j["name"] for j in journals}
+		st.text(db_user["email"])
+		u_query = st.text_area("💬 Research Description", value=db_user["query"] if db_user["query"] else None, placeholder="Describe your research subjects and interests here...\nExample: I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data" if not db_user["query"] else None)
 		# Sanitize user input to prevent potential issues
 		u_query = u_query.strip() if u_query else None
 		if not u_query:
@@ -106,23 +110,24 @@ def handle_edit_research_interests():
 		u_journals = st.multiselect(
 			label="Journals",
 			options=list(journals_dict.keys()),
-			default=db_journals,
+			default=db_user["journals"],
 			format_func=lambda x: journals_dict[x],
 			filter_mode="contains",
 			max_selections=50
 		)
 		if not u_journals:
 			st.error("❌ You need to select at least one Journal")
-		u_n_of_papers = st.slider("Number of papers to receive each month", min_value=10, max_value=100, value=db_n_of_papers if db_n_of_papers else 20, step=10)
 
-		u_receive_email = st.toggle("Receive_email", db_receive_email)
+		u_n_of_papers = st.slider("Number of papers to receive each month", min_value=10, max_value=100, value=db_user["num_papers"] if db_user["num_papers"] else 20, step=10)
+
+		u_receive_email = st.toggle("Receive_email", db_user["receive_email"])
 
 		col1, col2 = st.columns(2)
 		with col1:
 			submit_button = st.form_submit_button(label='✅ Submit', use_container_width=True)
 		with col2:
 			if st.form_submit_button(label='↩️ Back', use_container_width=True):
-				if not db_journals or not db_query:
+				if not db_user["journals"] or not db_user["query"]:
 					missing_values_for_new_user = True
 				else:
 					st.session_state.edit_research_interests = False
@@ -132,7 +137,11 @@ def handle_edit_research_interests():
 
 		if submit_button:
 			if u_journals and u_query:
-				db.update_user_interests(db_email, u_query, u_journals, u_n_of_papers, u_receive_email)
+				if u_query == db_user["query"]: u_query = None
+				if u_journals == db_user["journals"]: u_journals = None
+				if u_n_of_papers == db_user["num_papers"]: u_n_of_papers = None
+				if u_receive_email == db_user["receive_email"]: u_receive_email = None
+				db.update_user_interests(db_user["email"], u_query, u_journals, u_n_of_papers, u_receive_email)
 				st.session_state.form_submitted = True
 				st.session_state.edit_research_interests = False
 				missing_values_for_new_user = False

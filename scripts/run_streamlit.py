@@ -5,15 +5,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
-from app.db import init_db
 from app.streamlit_app import show_instructions, handle_enter_email, handle_edit_research_interests, show_verification
 
 def main():
 	st.set_page_config(page_title="Query Submission", layout="centered")
 	st.title("Stay Current With the Research That Matters to You")
-
-	# Initialize the database
-	init_db()
 
 	# Initialize session states
 	if 'enter_email' not in st.session_state:

@@ -1,117 +1,105 @@
-import sqlite3
 import os
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
-DB_PATH = os.getenv("DB_PATH")
 
-def init_db():
-	"""Initialize the SQLite database and create the users table if it doesn't exist."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.execute("""
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			email TEXT UNIQUE NOT NULL,
-			query TEXT,
-			journals TEXT,
-			num_papers INTEGER,
-			receive_email BOOL
-		)
-	""")
-	cursor.execute("""
-		CREATE TABLE IF NOT EXISTS journals (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			pmid TEXT UNIQUE NOT NULL
-		)
-	""")
-	conn.commit()
-	conn.close()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def add_user(email):
 	"""Add a new user query to the database."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.execute("INSERT INTO users (email, receive_email) VALUES (?, ?)", (email, True))
-	conn.commit()
-	conn.close()
+	supabase.table("users").insert({
+		"email": email,
+		"receive_email": True
+	}).execute()
 
 def update_user_interests(email, query, journals, num_papers, receive_email):
 	"""Update the query and interests for an existing user in the database."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	updates = []
-	params = []
-	if query:
-		updates.append("query = ?")
-		params.append(query)
-	if journals:
-		updates.append("journals = ?")
-		params.append(",".join(journals))
-	if num_papers:
-		updates.append("num_papers = ?")
-		params.append(num_papers)
-	updates.append("receive_email = ?")
-	params.append(receive_email)
-	params.append(email)
-	update_query = f"UPDATE users SET {', '.join(updates)} WHERE email = ?"
-	cursor.execute(update_query, tuple(params))
-	conn.commit()
-	conn.close()
+	updates = {}
+	if query is not None:
+		updates["query"] = query
+	if journals is not None:
+		updates["journals"] = journals
+	if num_papers is not None:
+		updates["num_papers"] = num_papers
+	if receive_email is not None:
+		updates["receive_email"] = receive_email
+	if not updates:
+		return
+	supabase.table("users").update(updates).eq("email", email).execute()
 
 def get_user(email):
-	"""Fetch a user query from the database based on the email."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
-	user = cursor.fetchone()
-	conn.close()
-	return user
+	"""Fetch a user from the database based on the email."""
+	res = supabase.table("users").select("*").eq("email", email).execute()
+	user = res.data
+	if not user:
+		return None
+	return user[0]
 
 def get_all_users():
-	"""Fetch all user queries from the database and return them as a list of tuples (email, query)."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.execute("SELECT * FROM users")
-	users = cursor.fetchall()
-	conn.close()
+	res = supabase.table("users").select("*").execute()
+	users = res.data
+	if not users:
+		return None
 	return users
 
-def get_journal_pmids():
+def get_journals_pmids():
 	"""Fetch all journal PMIDs from the database and return them as a list."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.execute("SELECT pmid FROM journals")
-	pmids = [row[0] for row in cursor.fetchall()]
-	conn.close()
-	return pmids
+	all_pmids = []
+	batch_size = 1000
+	start = 0
+	while True:
+		end = start + batch_size - 1
+		res = (
+			supabase
+			.table("journals")
+			.select("pmid")
+			.range(start, end)
+			.execute()
+		)
+		rows = res.data
+		if not rows:
+			break
+		all_pmids.extend(row["pmid"] for row in rows)
+		if len(rows) < batch_size:
+			break
+		start += batch_size
+	return all_pmids
 
 def add_journals(info):
 	"""Add new journals to the database."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.executemany("INSERT INTO journals (name, pmid) VALUES (?, ?)", info)
-	conn.commit()
-	conn.close()
+	supabase.table("journals").insert(info).execute()
 
 def get_all_journals():
-	"""Fetch all journal names from the database and return them as a list."""
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	cursor.execute("SELECT * FROM journals ORDER BY name")
-	journals = cursor.fetchall()
-	conn.close()
-	return journals
+	"""Fetch all journals from the database and return them as a list."""
+	all_journals = []
+	batch_size = 1000
+	start = 0
+	while True:
+		end = start + batch_size - 1
+		res = (
+			supabase
+			.table("journals")
+			.select("*")
+			.order("name")
+			.range(start, end)
+			.execute()
+		)
+		batch = res.data
+		if not batch:
+			break
+		all_journals.extend(batch)
+		if len(batch) < batch_size:
+			break
+		start += batch_size
+	return all_journals
 
 def get_journal_names_using_pmid(pmids):
 	if not pmids:
 		return []
-	conn = sqlite3.connect(DB_PATH)
-	cursor = conn.cursor()
-	placeholders = ",".join(["?"] * len(pmids))
-	query = f"SELECT name FROM journals WHERE pmid IN ({placeholders})"
-	cursor.execute(query, tuple(pmids))
-	rows = cursor.fetchall()
-	conn.close()
-	return [row[0] for row in rows]
+	res = supabase.table("journals").select("name").in_("pmid", pmids).execute()
+	rows = res.data
+	return [row["name"] for row in rows]

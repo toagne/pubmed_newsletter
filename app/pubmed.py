@@ -118,7 +118,7 @@ def get_journals_id():
 	return [id.text for id in root.findall(".//Id") if id.text]
 
 def look_for_journals_not_in_db():
-	db_journals = set(db.get_journal_pmids())
+	db_journals = set(db.get_journals_pmids())
 	api_journals = set(get_journals_id())
 	new_journals = api_journals - db_journals
 	return list(new_journals)
@@ -140,7 +140,10 @@ def get_journals_info():
 			logger.error(f"Skipping batch due to fetch/parse failure: {ids_str}")
 			continue
 		for i, journal in enumerate(root.findall(".//NLMCatalogRecord")):
-			info.append((journal.findtext(".//Title") or "Unknown Journal", batch[i]))
+			info.append({
+				"pmid": batch[i],
+				"name": journal.findtext(".//Title") or "Unknown Journal"
+			})
 		db.add_journals(info)
 		time.sleep(1) # to avoid hitting rate limits
 
