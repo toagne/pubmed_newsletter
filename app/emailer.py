@@ -53,6 +53,7 @@ def send_email(to, subject, body, papers=None):
 	msg['From'] = GMAIL_USER
 	msg['To'] = to
 	if papers:
+		journals_text = "\n".join(f"- {j}" for j in body["Journals"])
 		msg.set_content(f"""
 In the attachment you can find the literature update for the last month.
 
@@ -60,7 +61,7 @@ Here you have a recap of the research interest details you selected:
 
 Description: {body["Description"]}
 Journals:
-{"\n".join(f"- {j}" for j in body["Journals"])}
+{journals_text}
 Number of papers: {body["N of papers"]}
 Pub Types: {", ".join(body["Pub types"])} (this is a fixed parameter)
 """)
