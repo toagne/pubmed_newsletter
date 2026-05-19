@@ -81,5 +81,6 @@ def format_params(data, data_type=""):
 
 def get_last_month():
 	today = date.today()
-	last_month = today - (timedelta(days=today.day + 1))
-	return f"{last_month.year}/{last_month.month if last_month.month > 9 else f"0{last_month.month}"}"
+	first_day_this_month = today.replace(day=1)
+	last_day_previous_month = first_day_this_month - timedelta(days=1)
+	return f"{last_day_previous_month.year}/{last_day_previous_month.month:02d}"
