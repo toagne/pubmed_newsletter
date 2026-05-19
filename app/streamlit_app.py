@@ -1,10 +1,16 @@
 import streamlit as st
-from app import db
 import random
-from app.emailer import send_email
 import time
 import re
 from langdetect import detect
+import sys
+from pathlib import Path
+
+# Add parent directory to path so imports work
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from app import db
+from app.emailer import send_email
 
 def generate_number():
 	"""Generate a random 6-digit number as a string."""
@@ -178,3 +184,32 @@ def show_verification():
 			st.rerun()
 		else:
 			st.error("❌ Invalid verification code. Please try again.")
+
+def main():
+	st.set_page_config(page_title="Query Submission", layout="centered")
+	st.title("Stay Current With the Research That Matters to You")
+
+	# Initialize session states
+	if 'enter_email' not in st.session_state:
+		st.session_state.enter_email = False
+	if 'edit_research_interests' not in st.session_state:
+		st.session_state.edit_research_interests = False
+	if 'verification_step' not in st.session_state:
+		st.session_state.verification_step = False
+
+	# show instructions
+	if not st.session_state.enter_email and not st.session_state.edit_research_interests:
+		show_instructions()
+
+	elif st.session_state.enter_email and not st.session_state.edit_research_interests and not st.session_state.verification_step:
+		handle_enter_email()
+
+	# Show verification step
+	elif st.session_state.enter_email and st.session_state.verification_step:
+		show_verification()
+
+	elif st.session_state.edit_research_interests:
+		handle_edit_research_interests()
+
+if __name__ == "__main__":
+	main()
