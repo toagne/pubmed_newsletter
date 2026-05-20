@@ -13,7 +13,7 @@ def add_user(email):
 	"""Add a new user query to the database."""
 	supabase.table("users").insert({
 		"email": email,
-		"receive_email": True
+		"receive_email": False
 	}).execute()
 
 def update_user_interests(email, query, journals, num_papers, receive_email):
