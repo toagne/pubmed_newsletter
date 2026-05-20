@@ -124,6 +124,8 @@ def validate_query(u_query):
 	return True, None
 
 def submit_interests():
+	st.session_state["query_error"] = None
+	st.session_state["journals_error"] = None
 	u_query = st.session_state.get("u_query")
 	ok, error = validate_query(u_query)
 	u_journals = st.session_state.get("u_journals")
