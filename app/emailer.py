@@ -68,20 +68,15 @@ Pub Types: {", ".join(body["Pub types"])} (this is a fixed parameter)
 
 		pdf_bytes = create_pdf(papers)
 		year, month = body["Date"].split("/")
-		if send_email:
-			msg.add_attachment(
-				pdf_bytes,
-				maintype="application",
-				subtype="pdf",
-				filename=f"Literature Update_{year}_{month}.pdf"
-			)
-		else:
-			with open(f"Literature Update_{year}_{month}_{to}.pdf", "wb") as f:
-				f.write(pdf_bytes)
+		msg.add_attachment(
+			pdf_bytes,
+			maintype="application",
+			subtype="pdf",
+			filename=f"Literature Update_{year}_{month}.pdf"
+		)
 	else:
 		msg.set_content(body)
 
-	if send_email:
-		with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-			server.login(GMAIL_USER, GMAIL_PASSWORD)
-			server.send_message(msg)
+	with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+		server.login(GMAIL_USER, GMAIL_PASSWORD)
+		server.send_message(msg)
