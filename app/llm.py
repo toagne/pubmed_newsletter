@@ -39,6 +39,8 @@ For each paper:
 - Avoid jargon where possible while remaining scientifically accurate.
 
 2. Assign a relevance score (0–1) based on how relevant the paper is to the user's query.
+- Each paper must be evaluated independently against the query.
+- Do NOT compare papers against other papers in the batch.
 - Relevance scores must consider:
 	- topical similarity to the query
 	- scientific focus alignment
