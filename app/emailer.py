@@ -80,6 +80,3 @@ Pub Types: {", ".join(body["Pub types"])} (this is a fixed parameter)
 	with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
 		server.login(GMAIL_USER, GMAIL_PASSWORD)
 		server.send_message(msg)
-
-if __name__ == "__main__":
-	send_email("giuliamicoli98@gmail.com", "prova", "prova")

@@ -45,6 +45,9 @@ def run_monthly_job():
 				pubmed_keywords = llm_queries.get(str(user["id"])).get('pubmed_keywords')
 				journals_names = db.get_journal_names_using_pmid(user["journals"])
 				user_papers_ids = set(pubmed.get_ids(journals_names, pubmed_keywords, pub_types, last_month))
+				# if fetch with keywords gives no ids fetch without keywords
+				if not user_papers_ids:
+					user_papers_ids = set(pubmed.get_ids(journals_names, None, pub_types, last_month))
 				# Find which papers we've already fetched
 				new_ids = user_papers_ids - fetched_paper_ids
 				# Fetch only new papers from PubMed
@@ -55,7 +58,6 @@ def run_monthly_job():
 					fetched_paper_ids.update(new_ids)
 				# Build user's papers list from cache (both cached and newly fetched)
 				user_papers = [papers_cache[pid] for pid in user_papers_ids if pid in papers_cache]
-				
 				similarity_search_query = llm_queries.get(str(user["id"])).get('vector_query')
 				best_papers = run_pipeline(similarity_search_query, user["query"], user_papers, user["num_papers"])
 				body = {
