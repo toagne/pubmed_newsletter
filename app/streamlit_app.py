@@ -34,7 +34,9 @@ def exit():
 		"email_error",
 		"query_error",
 		"journals_error",
-		"verification_code_error"
+		"verification_code_error",
+		"is_feedback",
+		"feedback_error"
 	]
 	for key in keys_to_reset:
 		st.session_state[key] = None
@@ -48,7 +50,9 @@ def init_sessions_state():
 		"email_error": None,
 		"query_error": None,
 		"journals_error": None,
-		"verification_code_error": None
+		"verification_code_error": None,
+		"is_feedback": None,
+		"feedback_error": None
 	}
 	for key, value in defaults.items():
 		if key not in st.session_state:
@@ -73,9 +77,11 @@ You’ll receive an email containing:
 
 The goal is simple: help you spend less time searching and more time reading the papers that actually matter to your work.
 """)
-	col1, col2, col3 = st.columns(3)
-	with col2:
+	col1, col2 = st.columns(2)
+	with col1:
 		st.button("Start", on_click=go_to, args=["enter_email"], use_container_width=True)
+	with col2:
+		st.button("Feedback", on_click=go_to, args=["feedback"], use_container_width=True)
 
 def submit_email():
 	email = st.session_state.get("email", "").strip().lower()
@@ -85,7 +91,10 @@ def submit_email():
 		return
 	if db.get_user(email):
 		st.session_state["pending_email"] = email
-		go_to("edit_interests")
+		if st.session_state["page"] == "feedback":
+			st.session_state["is_feedback"] = True
+		else:
+			go_to("edit_interests")
 	else:
 		number = generate_number()
 		send_verification_email(email, number)
@@ -110,15 +119,15 @@ def handle_enter_email():
 def validate_query(u_query):
 	u_query = u_query.strip() if u_query else None
 	if not u_query:
-		return False, "❌ You need to to enter a query"
+		return False, "❌ You need to to enter a description"
 	if not re.match(r'^(?=.*[A-Za-z0-9])[A-Za-z0-9() .,:]+$', u_query):
-		return False, "❌ You need to to enter a valid query, only alphanumeric and ().,: characters are allowed"
+		return False, "❌ You need to to enter a valid description, only alphanumeric and ().,: characters are allowed"
 	if len(u_query.split(" ")) < 5:
-		return False, "❌ Please enter a longer query"
+		return False, "❌ Please enter a longer description"
 	if len(u_query) > 1000:
-		return False, "❌ Query is too long. Please limit to 1000 characters."
+		return False, "❌ Description is too long. Please limit to 1000 characters."
 	if re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', u_query, re.IGNORECASE):
-		return False, "❌ Query contains potentially harmful SQL-like keywords. Please enter a valid research query."
+		return False, "❌ Description contains potentially harmful SQL-like keywords. Please enter a valid research description."
 	if detect(u_query) != "en":
 		return False, "❌ Please use English"
 	return True, None
@@ -229,6 +238,51 @@ def show_verification():
 		with col1:
 			st.form_submit_button("✅ Verify", on_click=verify_code, use_container_width=True)
 
+def validate_feedback(feedback):
+	feedback = feedback.strip() if feedback else None
+	if not feedback:
+		return False, "❌ You need to to enter a feedback"
+	if re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', feedback, re.IGNORECASE):
+		return False, "❌ Feedback contains potentially harmful SQL-like keywords. Please enter a valid Feedback."
+	return True, None
+
+def submit_feedback():
+	st.session_state["feedback_error"] = None
+	db_user = db.get_user(st.session_state["pending_email"])
+	feedback_text = st.session_state["u_feedback"]
+	ok, error = validate_feedback(feedback_text)
+	if not ok:
+		st.session_state["feedback_error"] = error
+		return
+	feedback = {
+		"user_id": db_user["id"],
+		"feedback": feedback_text
+	}
+	db.add_feedback(feedback)
+	st.toast("✅ Feedback submitted successfully!")
+	exit()
+
+def handle_feedback():
+	if not st.session_state["is_feedback"]:
+		handle_enter_email()
+	else:
+		col_title, col_btn = st.columns([0.9, 0.1], vertical_alignment="center")
+		with col_title:
+			st.markdown("### Feedback for the literature update you received")
+		with col_btn:
+			st.button("❌", on_click=exit, use_container_width=True)
+		with st.form(key='feedback'):
+			st.text_area(label="Your feedback", key="u_feedback")
+			if st.session_state["feedback_error"]:
+				st.error(st.session_state["feedback_error"])
+			col1, col2, col3 = st.columns([0.25, 0.5, 0.25])
+			with col2:
+				st.form_submit_button(
+					label='✅ Submit Feedback',
+					on_click=submit_feedback,
+					use_container_width=True
+				)
+
 def main():
 	init_sessions_state()
 
@@ -243,6 +297,8 @@ def main():
 		show_verification()
 	elif st.session_state["page"] == "edit_interests":
 		handle_edit_research_interests()
+	elif st.session_state["page"] == "feedback":
+		handle_feedback()
 
 if __name__ == "__main__":
 	main()

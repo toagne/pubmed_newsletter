@@ -71,7 +71,7 @@ def get_journals_pmids():
 
 def add_journals(info):
 	"""Add new journals to the database."""
-	supabase.table("journals").insert(info).execute()
+	supabase.table("journals").upsert(info).execute()
 
 def get_all_journals():
 	"""Fetch all journals from the database and return them as a list."""
@@ -103,3 +103,6 @@ def get_journal_names_using_pmid(pmids):
 	res = supabase.table("journals").select("name").in_("pmid", pmids).execute()
 	rows = res.data
 	return [row["name"] for row in rows]
+
+def add_feedback(feedback):
+	supabase.table("feedbacks").insert(feedback).execute()

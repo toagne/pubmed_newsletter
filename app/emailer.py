@@ -55,6 +55,8 @@ def send_email(to, subject, body, papers=None):
 	if papers:
 		journals_text = "\n".join(f"- {j}" for j in body["Journals"])
 		msg.set_content(f"""
+!!!THERE IS A FEEDBACK SESSION IN THE HOME PAGE IF YOU WANT TO LEAVE ANY FEEDBACK ABOUT THE LITERATURE UPDATE YOU RECEIVED!!!
+
 In the attachment you can find the literature update for the last month.
 
 Here you have a recap of the research interest details you selected:
