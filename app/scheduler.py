@@ -45,8 +45,8 @@ def run_monthly_job():
 				pubmed_keywords = llm_queries.get(str(user["id"])).get('pubmed_keywords')
 				journals_names = db.get_journal_names_using_pmid(user["journals"])
 				user_papers_ids = set(pubmed.get_ids(journals_names, pubmed_keywords, pub_types, last_month))
-				# if fetch with keywords gives no ids fetch without keywords
-				if not user_papers_ids:
+				# if fetch with keywords gives not enough ids fetch without keywords
+				if len(user_papers_ids) < user["num_papers"] * 10:
 					user_papers_ids = set(pubmed.get_ids(journals_names, None, pub_types, last_month))
 				# Find which papers we've already fetched
 				new_ids = user_papers_ids - fetched_paper_ids
