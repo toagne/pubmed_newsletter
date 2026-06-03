@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import db
 from app.emailer import send_email
+from app.utils import adapt_queries_with_llm
 
 def generate_number():
 	"""Generate a random 6-digit number as a string."""
@@ -36,7 +37,10 @@ def exit():
 		"journals_error",
 		"verification_code_error",
 		"is_feedback",
-		"feedback_error"
+		"feedback_error",
+		"query_data",
+		"show_journal_dialog",
+		"update_journals",
 	]
 	for key in keys_to_reset:
 		st.session_state[key] = None
@@ -52,12 +56,16 @@ def init_sessions_state():
 		"journals_error": None,
 		"verification_code_error": None,
 		"is_feedback": None,
-		"feedback_error": None
+		"feedback_error": None,
+		"query_data": None,
+		"show_journal_dialog": None,
+		"update_journals": None,
 	}
 	for key, value in defaults.items():
 		if key not in st.session_state:
 			st.session_state[key] = value
 
+# HOME
 def show_instructions():
 	st.markdown("""
 Keeping up with scientific literature is difficult. Thousands of papers are published every month across journals, preprint servers, and research communities. This tool helps you discover the articles most relevant to your work — automatically.
@@ -83,18 +91,22 @@ The goal is simple: help you spend less time searching and more time reading the
 	with col2:
 		st.button("Feedback", on_click=go_to, args=["feedback"], use_container_width=True)
 
+# EMAIL
 def submit_email():
 	email = st.session_state.get("email", "").strip().lower()
 	email_valid = bool(email and re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
 	if not email_valid:
 		st.session_state["email_error"] = "❌ Please enter a valid email address."
 		return
-	if db.get_user(email):
+	user = db.get_user(email)
+	if user:
 		st.session_state["pending_email"] = email
 		if st.session_state["page"] == "feedback":
 			st.session_state["is_feedback"] = True
+		elif user.get("query"):
+			go_to("user_profile")
 		else:
-			go_to("edit_interests")
+			go_to("edit_description")
 	else:
 		number = generate_number()
 		send_verification_email(email, number)
@@ -116,35 +128,15 @@ def handle_enter_email():
 		with col2:
 			st.form_submit_button(label='✅ Submit', on_click=submit_email, use_container_width=True)
 
-def validate_query(u_query):
-	u_query = u_query.strip() if u_query else None
-	if not u_query:
-		return False, "❌ You need to to enter a description"
-	if not re.match(r'^(?=.*[A-Za-z0-9])[A-Za-z0-9() .,:]+$', u_query):
-		return False, "❌ You need to to enter a valid description, only alphanumeric and ().,: characters are allowed"
-	if len(u_query.split(" ")) < 5:
-		return False, "❌ Please enter a longer description"
-	if len(u_query) > 1000:
-		return False, "❌ Description is too long. Please limit to 1000 characters."
-	if re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', u_query, re.IGNORECASE):
-		return False, "❌ Description contains potentially harmful SQL-like keywords. Please enter a valid research description."
-	if detect(u_query) != "en":
-		return False, "❌ Please use English"
-	return True, None
-
+# USER RESEARCH INTERESTS
 def submit_interests():
-	st.session_state["query_error"] = None
 	st.session_state["journals_error"] = None
-	u_query = st.session_state.get("u_query")
-	ok, error = validate_query(u_query)
 	u_journals = st.session_state.get("u_journals")
-	if not ok or not u_journals:
-		if not ok:
-			st.session_state["query_error"] = error
-		if not u_journals:
-			st.session_state["journals_error"] = "❌ You need to select at least one Journal"
+	if not u_journals:
+		st.session_state["journals_error"] = "❌ You need to select at least one Journal"
 		return
 	db_user = db.get_user(st.session_state["pending_email"])
+	u_query = st.session_state.get("u_query")
 	u_n_of_papers = st.session_state.get("u_n_of_papers")
 	u_receive_email = st.session_state.get("u_receive_email")
 	if u_query == db_user["query"]:
@@ -155,9 +147,16 @@ def submit_interests():
 		u_n_of_papers = None
 	if u_receive_email == db_user["receive_email"]:
 		u_receive_email = None
-	db.update_user_interests(db_user["email"], u_query, u_journals, u_n_of_papers, u_receive_email)
+	db.update_user_interests(
+		db_user["email"],
+		u_query,
+		u_journals,
+		u_n_of_papers,
+		u_receive_email,
+		st.session_state["query_data"]
+	)
 	st.toast("🎉 Your research interests has been submitted successfully!")
-	exit()
+	go_to("user_profile")
 
 def handle_edit_research_interests():
 	db_user = db.get_user(st.session_state["pending_email"])
@@ -169,19 +168,24 @@ def handle_edit_research_interests():
 	with col_btn:
 		st.button("❌", on_click=exit, use_container_width=True)
 	with st.form(key='edit_research_interests_form'):
-		st.text(db_user["email"])
+		st.text_input("Email", value=db_user["email"], disabled=True)
+		if not st.session_state.get("u_query"):
+			st.session_state["u_query"] = db_user.get("query")
 		st.text_area(
-			label="💬 Research Description",
-			value=db_user["query"] if db_user["query"] else None,
-			key="u_query",
-			placeholder="Describe your research subjects and interests here...\nExample: I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data" if not db_user["query"] else None
+			label="Research Description",
+			value=st.session_state.get("u_query") or "",
+			disabled=True,
 		)
-		if st.session_state["query_error"]:
-			st.error(st.session_state["query_error"])
+		st.caption("Email and research description are locked here. To update your research description, use the dedicated edit description flow from your profile page.")
+		if st.session_state["update_journals"]:
+			st.info("The automatic journal update feature is not available yet. Your journal selection is the same as before.")
+			default_journals = db_user.get("journals", []) # change this
+		else:
+			default_journals = db_user.get("journals", [])
 		st.multiselect(
 			label="Journals",
 			options=list(journals_dict.keys()),
-			default=db_user["journals"],
+			default=default_journals,
 			format_func=lambda x: journals_dict[x],
 			key="u_journals",
 			filter_mode="contains",
@@ -210,6 +214,7 @@ def handle_edit_research_interests():
 				use_container_width=True
 			)
 
+# VERIFICATION CODE
 def verify_code():
 	input_code = st.session_state.get("verification_input", "").strip()
 	if input_code == st.session_state["verification_number"]:
@@ -217,7 +222,7 @@ def verify_code():
 			st.session_state["verification_code_error"] = None
 		db.add_user(st.session_state["pending_email"])
 		st.toast("✅ Email verified successfully!")
-		go_to("edit_interests")
+		go_to("edit_description")
 	else:
 		st.session_state["verification_code_error"] = "❌ Invalid verification code. Please try again."
 
@@ -238,6 +243,7 @@ def show_verification():
 		with col1:
 			st.form_submit_button("✅ Verify", on_click=verify_code, use_container_width=True)
 
+# FEEDBACK
 def validate_feedback(feedback):
 	feedback = feedback.strip() if feedback else None
 	if not feedback:
@@ -283,6 +289,132 @@ def handle_feedback():
 					use_container_width=True
 				)
 
+# UPDATE JOURNALS
+@st.dialog("Update Journals Recommendations", width="medium")
+def journals_update_dialog():
+	st.write("Would you like to update your journal selection based on your new research description?")
+	col1, col2 = st.columns(2)
+	with col1:
+		if st.button("Yes, show me the recommendations"):
+			st.session_state["show_journal_dialog"] = False
+			st.session_state["update_journals"] = True
+			go_to("edit_interests")
+			st.rerun()
+	with col2:
+		if st.button("No, keep my current selection"):
+			st.session_state["show_journal_dialog"] = False
+			st.session_state["update_journals"] = False
+			go_to("edit_interests")
+			st.rerun()
+
+# USER DESCRIPTION
+def validate_query(u_query):
+	u_query = u_query.strip() if u_query else None
+	if not u_query:
+		return False, "❌ You need to to enter a description"
+	if not re.match(r'^(?=.*[A-Za-z0-9])[A-Za-z0-9() .,:]+$', u_query):
+		return False, "❌ You need to to enter a valid description, only alphanumeric and ().,: characters are allowed"
+	if len(u_query.split(" ")) < 5:
+		return False, "❌ Please enter a longer description"
+	if len(u_query) > 1000:
+		return False, "❌ Description is too long. Please limit to 1000 characters."
+	if re.search(r'\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE)\b', u_query, re.IGNORECASE):
+		return False, "❌ Description contains potentially harmful SQL-like keywords. Please enter a valid research description."
+	if detect(u_query) != "en":
+		return False, "❌ Please use English"
+	return True, None
+
+def submit_description():
+	st.session_state["query_error"] = None
+	u_query = st.session_state.get("u_query")
+	ok, error = validate_query(u_query)
+	if not ok:
+		st.session_state["query_error"] = error
+		return
+	with st.spinner("Analyzing your description...", show_time=True):
+		query_data = adapt_queries_with_llm(u_query)
+	if query_data.get("is_valid_research_query") == False:
+		st.session_state["query_error"] = query_data.get("explanation")
+		return
+	st.session_state["query_error"] = None
+	st.session_state["query_data"] = query_data
+	if db.get_user(st.session_state["pending_email"]).get("query"):
+		st.session_state["show_journal_dialog"] = True
+	else:
+		go_to("edit_interests")
+
+def handle_edit_description():
+	db_user = db.get_user(st.session_state["pending_email"])
+	col_title, col_btn = st.columns([0.9, 0.1], vertical_alignment="center")
+	with col_title:
+		st.markdown("### Edit Your Research Description")
+	with col_btn:
+		st.button("❌", on_click=exit, use_container_width=True)
+	with st.form(key='edit_research_description_form'):
+		st.text_input("Email", value=db_user["email"], disabled=True)
+		value = db_user.get("query") if db_user.get("query") else None
+		placeholder = ("Describe your research subjects and interests here...\nExample: I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data"
+			if not db_user["query"]
+			else None)
+		st.text_area(
+			label="💬 Research Description",
+			value=value,
+			key="u_query",
+			placeholder=placeholder
+		)
+		if st.session_state["query_error"]:
+			st.error(st.session_state["query_error"])
+		col1, col2, col3 = st.columns([0.25, 0.5, 0.25])
+		with col2:
+			st.form_submit_button(
+				label='✅ Save your description',
+				on_click=submit_description,
+				use_container_width=True
+			)
+	if st.session_state.get("show_journal_dialog"):
+		journals_update_dialog()
+
+# USER PROFILE
+def handle_user_profile():
+	db_user = db.get_user(st.session_state["pending_email"])
+	col_title, col_btn = st.columns([0.9, 0.1], vertical_alignment="center")
+	with col_title:
+		st.markdown("### Your Profile")
+	with col_btn:
+		st.button("❌", on_click=exit, use_container_width=True)
+	st.markdown("<hr style='margin: 0rem 0;'>", unsafe_allow_html=True)
+	st.markdown("##### Profile Summary")
+	col1, col2, col3 = st.columns([.5, .25, .25], border=True,)
+	col1.markdown("**Email**")
+	col1.text(db_user.get("email", "—"))
+	col2.markdown("**Papers / month**")
+	col2.write(str(db_user.get("num_papers", "—")))
+	col3.markdown("**Email updates**")
+	col3.write("Yes" if db_user.get("receive_email") else "No")
+	st.markdown("<hr style='margin: 0rem 0;'>", unsafe_allow_html=True)
+	st.markdown("##### Research Description")
+	if db_user.get("query"):
+		st.info(db_user["query"])
+	else:
+		st.warning("No research description provided yet.")
+	c1, c2, c3 = st.columns([.25, .5, .25])
+	with c2:
+		st.button("Edit research description", on_click=go_to, args=["edit_description"], use_container_width=True)
+	journals = db.get_journal_names_using_pmid(db_user.get("journals", []))
+	st.markdown("<hr style='margin: 0rem 0;'>", unsafe_allow_html=True)
+	st.markdown("##### Selected Journals")
+	if journals:
+		row_cols = st.columns(3)
+		for index, journal_name in enumerate(journals):
+			col = row_cols[index % len(row_cols)]
+			col.markdown(f"- {journal_name}")
+	else:
+		st.warning("No journals selected yet.")
+	st.divider()
+	c1, c2, c3 = st.columns([.25, .5, .25])
+	with c2:
+		st.button("Edit journals & preferences", on_click=go_to, args=["edit_interests"], use_container_width=True)
+
 def main():
 	init_sessions_state()
 
@@ -295,10 +427,14 @@ def main():
 		handle_enter_email()
 	elif st.session_state["page"] == "verification":
 		show_verification()
+	elif st.session_state["page"] == "edit_description":
+		handle_edit_description()
 	elif st.session_state["page"] == "edit_interests":
 		handle_edit_research_interests()
 	elif st.session_state["page"] == "feedback":
 		handle_feedback()
+	elif st.session_state["page"] == "user_profile":
+		handle_user_profile()
 
 if __name__ == "__main__":
 	main()

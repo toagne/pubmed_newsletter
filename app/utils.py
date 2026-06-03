@@ -5,6 +5,8 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import timedelta, date
+from app import llm
+import json
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -84,3 +86,8 @@ def get_last_month():
 	first_day_this_month = today.replace(day=1)
 	last_day_previous_month = first_day_this_month - timedelta(days=1)
 	return f"{last_day_previous_month.year}/{last_day_previous_month.month:02d}"
+
+def adapt_queries_with_llm(query):
+	response = llm.analyze_with_llm(llm.USER_QUERY_ANALYSIS_PROMPT, query)
+	query_data = json.loads(response)
+	return query_data

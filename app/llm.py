@@ -84,23 +84,16 @@ Your task is to analyze researcher profile descriptions and generate:
 3. a validation assessment indicating whether the profile contains meaningful scientific research information
 
 INPUT FORMAT:
-The input is a JSON object where:
-- each key is a user_id
-- each value is a researcher profile description
+A text string that contains a researcher profile description
 
 INPUT FORMAT:
-{
-	"user1 id": "user1 description",
-	"user2 id": "user2 description"
-}
+"user description"
 
 TASK RULES:
 
-1. Preserve ALL input user_ids exactly as provided.
+1. Determine whether the profile contains meaningful biomedical or scientific research information.
 
-2. Determine whether each profile contains meaningful biomedical or scientific research information.
-
-3. A VALID scientific profile usually includes:
+2. A VALID scientific profile usually includes:
 - biomedical domains
 - diseases
 - scientific research areas
@@ -110,35 +103,51 @@ TASK RULES:
 - omics fields
 - scientific disciplines
 
-4. An INVALID profile includes:
+3. An INVALID profile includes:
 - hobbies
 - personal preferences
 - generic non-scientific descriptions
 - unrelated text
 - insufficient scientific information
 
-5. For pubmed_keywords:
-- use broad scientific concepts
-- normalize highly specific techniques into broader domains
-- use 2-4 keywords maximum
-- optimize for stable PubMed retrieval
-- avoid excessive specificity
-- avoid generic words such as: "research", "science", "study"
+4. For pubmed_keywords:
+- Return 2-4 broad scientific fields, disciplines, or domains that characterize the researcher's expertise.
+- Normalize specific diseases, biological mechanisms, experimental methods, technologies, and research questions into broader scientific fields.
+- Keywords should describe the researcher's area of expertise, not the specific projects, hypotheses, or datasets mentioned in the profile.
+- Prefer established scientific categories that would retrieve a broad but relevant body of literature.
+- Use the highest reasonable level of abstraction that preserves the scientific meaning.
+- Each keyword should contribute distinct information.
+- Avoid selecting keywords that substantially overlap in scope.
+- Avoid selecting a keyword that is primarily a subfield, technique, or application of another selected keyword.
 
-6. For vector_query:
-- generate a concise natural-language semantic query
-- optimize for embedding similarity search
-- preserve scientific meaning
-- avoid conversational wording
-- avoid Boolean operators
-- avoid keyword lists
-- keep it semantically dense
-- use approximately 5-15 words
+Avoid:
+- specific diseases
+- specific genes
+- specific pathways
+- specific experimental techniques
+- research questions copied from the input
 
-7. If a profile is invalid:
+5. For vector_query:
+- Generate a concise scientific description of the user's research interests.
+- Preserve the important scientific concepts and specificity from the input.
+- Write a coherent natural-language phrase, not a keyword list.
+- Optimize for semantic similarity search using embeddings.
+- Include diseases, biological processes, and methodological themes when they are central to the research focus.
+- Use approximately 5-15 words.
+
+Avoid:
+- Boolean operators (AND, OR, NOT)
+- comma-separated keyword lists
+- conversational wording
+- introductory phrases such as "research on" or "I study"
+
+The vector_query should describe the scientific focus, not merely repeat keywords from the input.
+
+6. If a profile is invalid:
 - set is_valid_research_query to false
 - return empty keyword arrays
 - return an empty vector_query
+- give a brief explanation
 
 8. Return ONLY valid JSON.
 9. Do NOT include markdown.
@@ -147,14 +156,13 @@ TASK RULES:
 OUTPUT FORMAT:
 
 {
-	"user_id": {
-		"is_valid_research_query": true/false,
-		"pubmed_keywords": [],
-		"vector_query": "..."
-	}
+	"is_valid_research_query": true/false,
+	"explanation": "brief explanation if invalid, otherwise empty string",
+	"pubmed_keywords": [],
+	"vector_query": "..."
 }
 
-Now process the provided input JSON.
+Now process the provided input string.
 """
 
 model = ChatOpenAI(model="gpt-4.1-mini")

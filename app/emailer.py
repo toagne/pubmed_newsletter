@@ -47,14 +47,13 @@ def create_pdf(papers):
 	buffer.seek(0)
 	return buffer.read()
 
-def send_email(to, subject, body, papers=None):
+def send_email(to, subject, body, papers):
 	msg = EmailMessage()
 	msg['Subject'] = subject
 	msg['From'] = f"Scientific Literature Newsletter <{GMAIL_USER}>"
 	msg['To'] = to
-	if papers:
-		journals_text = "\n".join(f"- {j}" for j in body["Journals"])
-		msg.set_content(f"""
+	journals_text = "\n".join(f"- {j}" for j in body["Journals"])
+	msg.set_content(f"""
 !!!THERE IS A FEEDBACK SESSION IN THE HOME PAGE IF YOU WANT TO LEAVE ANY FEEDBACK ABOUT THE LITERATURE UPDATE YOU RECEIVED!!!
 
 In the attachment you can find the literature update for the last month.
@@ -68,16 +67,14 @@ Number of papers: {body["N of papers"]}
 Pub Types: {", ".join(body["Pub types"])} (this is a fixed parameter)
 """)
 
-		pdf_bytes = create_pdf(papers)
-		year, month = body["Date"].split("/")
-		msg.add_attachment(
-			pdf_bytes,
-			maintype="application",
-			subtype="pdf",
-			filename=f"Literature Update_{year}_{month}.pdf"
-		)
-	else:
-		msg.set_content(body)
+	pdf_bytes = create_pdf(papers)
+	year, month = body["Date"].split("/")
+	msg.add_attachment(
+		pdf_bytes,
+		maintype="application",
+		subtype="pdf",
+		filename=f"Literature Update_{year}_{month}.pdf"
+	)
 
 	with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
 		server.login(GMAIL_USER, GMAIL_PASSWORD)

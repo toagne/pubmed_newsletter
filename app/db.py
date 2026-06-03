@@ -16,7 +16,7 @@ def add_user(email):
 		"receive_email": False
 	}).execute()
 
-def update_user_interests(email, query, journals, num_papers, receive_email):
+def update_user_interests(email, query, journals, num_papers, receive_email, query_data):
 	"""Update the query and interests for an existing user in the database."""
 	updates = {}
 	if query is not None:
@@ -27,6 +27,9 @@ def update_user_interests(email, query, journals, num_papers, receive_email):
 		updates["num_papers"] = num_papers
 	if receive_email is not None:
 		updates["receive_email"] = receive_email
+	if query_data is not None:
+		updates["pubmed_keywords"] = query_data["pubmed_keywords"]
+		updates["vector_query"] = query_data["vector_query"]
 	if not updates:
 		return
 	supabase.table("users").update(updates).eq("email", email).execute()
@@ -40,7 +43,7 @@ def get_user(email):
 	return user[0]
 
 def get_all_users():
-	res = supabase.table("users").select("*").execute()
+	res = supabase.table("users").select("*").order("id").execute()
 	users = res.data
 	if not users:
 		return None
