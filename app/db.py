@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -9,12 +10,18 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+logger = logging.getLogger(__name__)
+
 def add_user(email):
 	"""Add a new user query to the database."""
-	supabase.table("users").insert({
-		"email": email,
-		"receive_email": False
-	}).execute()
+	try:
+		supabase.table("users").insert({
+			"email": email,
+			"receive_email": False
+		}).execute()
+	except Exception as e:
+		logger.error(f"DB error in add_user for {email}: {e}")
+		raise
 
 def update_user_interests(email, query, journals, num_papers, receive_email, query_data):
 	"""Update the query and interests for an existing user in the database."""
@@ -32,21 +39,33 @@ def update_user_interests(email, query, journals, num_papers, receive_email, que
 		updates["vector_query"] = query_data["vector_query"]
 	if not updates:
 		return
-	supabase.table("users").update(updates).eq("email", email).execute()
+	try:
+		supabase.table("users").update(updates).eq("email", email).execute()
+	except Exception as e:
+		logger.error(f"DB error in update_user_interests for {email}: {e}")
+		raise
 
 def get_user(email):
 	"""Fetch a user from the database based on the email."""
-	res = supabase.table("users").select("*").eq("email", email).execute()
+	try:
+		res = supabase.table("users").select("*").eq("email", email).execute()
+	except Exception as e:
+		logger.error(f"DB error in get_user for {email}: {e}")
+		raise
 	user = res.data
 	if not user:
 		return None
 	return user[0]
 
 def get_all_users():
-	res = supabase.table("users").select("*").order("id").execute()
+	try:
+		res = supabase.table("users").select("*").order("id").execute()
+	except Exception as e:
+		logger.error(f"DB error in get_all_users: {e}")
+		raise
 	users = res.data
 	if not users:
-		return None
+		return []
 	return users
 
 def get_journals_pmids():
@@ -56,13 +75,17 @@ def get_journals_pmids():
 	start = 0
 	while True:
 		end = start + batch_size - 1
-		res = (
-			supabase
-			.table("journals")
-			.select("pmid")
-			.range(start, end)
-			.execute()
-		)
+		try:
+			res = (
+				supabase
+				.table("journals")
+				.select("pmid")
+				.range(start, end)
+				.execute()
+			)
+		except Exception as e:
+			logger.error(f"DB error in get_journals_pmids at offset {start}: {e}")
+			raise
 		rows = res.data
 		if not rows:
 			break
@@ -74,7 +97,11 @@ def get_journals_pmids():
 
 def add_journals(info):
 	"""Add new journals to the database."""
-	supabase.table("journals").upsert(info).execute()
+	try:
+		supabase.table("journals").upsert(info).execute()
+	except Exception as e:
+		logger.error(f"DB error in add_journals: {e}")
+		raise
 
 def get_all_journals():
 	"""Fetch all journals from the database and return them as a list."""
@@ -83,14 +110,18 @@ def get_all_journals():
 	start = 0
 	while True:
 		end = start + batch_size - 1
-		res = (
-			supabase
-			.table("journals")
-			.select("*")
-			.order("name")
-			.range(start, end)
-			.execute()
-		)
+		try:
+			res = (
+				supabase
+				.table("journals")
+				.select("*")
+				.order("name")
+				.range(start, end)
+				.execute()
+			)
+		except Exception as e:
+			logger.error(f"DB error in get_all_journals at offset {start}: {e}")
+			raise
 		batch = res.data
 		if not batch:
 			break
@@ -103,9 +134,17 @@ def get_all_journals():
 def get_journal_names_using_pmid(pmids):
 	if not pmids:
 		return []
-	res = supabase.table("journals").select("name").in_("pmid", pmids).execute()
+	try:
+		res = supabase.table("journals").select("name").in_("pmid", pmids).execute()
+	except Exception as e:
+		logger.error(f"DB error in get_journal_names_using_pmid: {e}")
+		raise
 	rows = res.data
 	return [row["name"] for row in rows]
 
 def add_feedback(feedback):
-	supabase.table("feedbacks").insert(feedback).execute()
+	try:
+		supabase.table("feedbacks").insert(feedback).execute()
+	except Exception as e:
+		logger.error(f"DB error in add_feedback: {e}")
+		raise
