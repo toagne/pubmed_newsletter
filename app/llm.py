@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from langchain.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 
 from dotenv import load_dotenv
 
@@ -14,15 +14,15 @@ INPUT FORMAT:
 The input is a JSON object where:
 - there is the user query
 - there is a list of papers where:
-	- each key is a pmid
+	- each key is a pmid value
 	- each value is a paper abstract
 
 INPUT EXAMPLE:
 {
 	"query": "user query",
 	"papers": {
-		"pmid1": "abstract text...",
-		"pmid2": "abstract text..."
+		"12345678": "abstract text...",
+		"87654321": "abstract text..."
 	}
 }
 
@@ -38,7 +38,7 @@ For each paper:
 - Focus on the main objective, methods, and findings.
 - Avoid jargon where possible while remaining scientifically accurate.
 
-2. Assign a relevance score (0–1) based on how relevant the paper is to the user's query.
+2. Assign a relevance score as a float between 0.0 and 1.0 based on how relevant the paper is to the user's query.
 - Each paper must be evaluated independently against the query.
 - Do NOT compare papers against other papers in the batch.
 - Relevance scores must consider:
@@ -56,10 +56,10 @@ For each paper:
 OUTPUT FORMAT:
 
 {
-	"pmid": {
+	"<pmid_value>": {
 		"summary": "...",
-		"relevance_score": 0-1,
-		"relevance_explanation": "...",
+		"relevance_score": <float between 0.0 and 1.0>,
+		"relevance_explanation": "..."
 	}
 }
 
@@ -71,87 +71,67 @@ RULES:
 - If information is missing or unclear, explicitly state uncertainty.
 - Prioritize scientific accuracy over readability.
 - Ignore stylistic language in abstracts; focus on actual content.
-- If multiple papers are equally relevant, rank by novelty and methodological strength.
 - Be concise but precise.
 """
 
 USER_QUERY_ANALYSIS_PROMPT = """
-You are an expert biomedical semantic retrieval assistant.
+You are an expert biomedical search specialist.
 
 Your task is to analyze researcher profile descriptions and generate:
-1. normalized PubMed retrieval keywords
-2. a semantic vector-search query optimized for embedding similarity search
-3. a validation assessment indicating whether the profile contains meaningful scientific research information
-
-INPUT FORMAT:
-A text string that contains a researcher profile description
+1. PubMed search keywords optimized for literature retrieval
+2. A semantic similarity search query optimized for embedding-based search
+3. A validation assessment of whether the profile contains meaningful scientific research information
 
 INPUT FORMAT:
 "user description"
+
+---
 
 TASK RULES:
 
 1. Determine whether the profile contains meaningful biomedical or scientific research information.
 
-2. A VALID scientific profile usually includes:
-- biomedical domains
-- diseases
+2. A VALID scientific profile includes:
+- biomedical domains or diseases
 - scientific research areas
-- computational biology topics
-- biological processes
-- laboratory methods
+- computational or systems biology topics
+- biological processes or pathways
+- laboratory or clinical methods
 - omics fields
-- scientific disciplines
+- specific scientific disciplines
 
 3. An INVALID profile includes:
-- hobbies
-- personal preferences
+- hobbies or personal preferences
 - generic non-scientific descriptions
 - unrelated text
-- insufficient scientific information
+- insufficient scientific information to identify a research focus
 
 4. For pubmed_keywords:
-- Return 2-4 broad scientific fields, disciplines, or domains that characterize the researcher's expertise.
-- Normalize specific diseases, biological mechanisms, experimental methods, technologies, and research questions into broader scientific fields.
-- Keywords should describe the researcher's area of expertise, not the specific projects, hypotheses, or datasets mentioned in the profile.
-- Prefer established scientific categories that would retrieve a broad but relevant body of literature.
-- Use the highest reasonable level of abstraction that preserves the scientific meaning.
-- Each keyword should contribute distinct information.
-- Avoid selecting keywords that substantially overlap in scope.
-- Avoid selecting a keyword that is primarily a subfield, technique, or application of another selected keyword.
-
-Avoid:
-- specific diseases
-- specific genes
-- specific pathways
-- specific experimental techniques
-- research questions copied from the input
+- Return 4-6 search terms that will be OR-joined in a PubMed boolean query.
+- Use terms at the specificity level of PubMed MeSH terms — specific enough to narrow results meaningfully, but established enough to appear frequently in titles and abstracts.
+- Include disease names, biological processes, experimental methods, and research topics when they are central to the researcher's focus.
+- Avoid overly broad terms like "Oncology", "Genomics", or "Biology" that would return thousands of loosely related papers.
+- Each term should contribute distinct retrieval coverage with minimal overlap.
 
 5. For vector_query:
-- Generate a concise scientific description of the user's research interests.
-- Preserve the important scientific concepts and specificity from the input.
-- Write a coherent natural-language phrase, not a keyword list.
-- Optimize for semantic similarity search using embeddings.
-- Include diseases, biological processes, and methodological themes when they are central to the research focus.
-- Use approximately 5-15 words.
+- Write 20-40 words describing the researcher's scientific focus.
+- Write in the style of the opening sentence(s) of a scientific abstract — dense, precise, in the third person.
+- Include key diseases, biological processes, methodological themes, and research questions central to the profile.
+- This query will be compared against full paper abstracts using semantic embedding similarity, so match their register and scientific vocabulary.
 
 Avoid:
+- Conversational language or first-person phrasing
+- Keyword lists or bullet points
 - Boolean operators (AND, OR, NOT)
-- comma-separated keyword lists
-- conversational wording
-- introductory phrases such as "research on" or "I study"
-
-The vector_query should describe the scientific focus, not merely repeat keywords from the input.
+- Introductory phrases such as "research on" or "This study"
 
 6. If a profile is invalid:
-- set is_valid_research_query to false
-- return empty keyword arrays
-- return an empty vector_query
-- give a brief explanation
+- Set is_valid_research_query to false
+- Return an empty pubmed_keywords array
+- Return an empty vector_query string
+- Provide a brief explanation
 
-8. Return ONLY valid JSON.
-9. Do NOT include markdown.
-10. Do NOT include explanations.
+7. Return ONLY valid JSON with no markdown formatting.
 
 OUTPUT FORMAT:
 
@@ -165,7 +145,11 @@ OUTPUT FORMAT:
 Now process the provided input string.
 """
 
-model = ChatOpenAI(model="gpt-4.1-mini")
+model = ChatOpenAI(
+	model="gpt-4.1-mini",
+	temperature=0,
+	model_kwargs={"response_format": {"type": "json_object"}}
+)
 
 def analyze_with_llm(prompt, input):
 	return model.invoke([
