@@ -22,8 +22,8 @@ class Paper:
 	authors: str
 	abstract: str
 	summary: str = ""
-	relevance_score = 0
-	relevance_explanation = ""
+	relevance_score: float = 0.0
+	relevance_explanation: str = ""
 
 # helper function to fetch and parse XML from a URL
 def fetch_xml(url, params):
@@ -60,19 +60,6 @@ def format_batch(papers, query):
 	res["papers"] = {str(p.pmid): p.abstract for p in papers}
 	return res
 
-def format_email(papers):
-	text = ""
-	for i, p in enumerate(papers, 1):
-		text += f"""
-Paper {i}
-PMID: {p.pmid}
-Journal: {p.journal}
-Title: {p.title}
-Abstract: {p.abstract}
---------------------
-"""
-	return text
-
 def format_params(data, data_type=""):
 	if not data:
 		return ""
@@ -89,5 +76,9 @@ def get_last_month():
 
 def adapt_queries_with_llm(query):
 	response = llm.analyze_with_llm(llm.USER_QUERY_ANALYSIS_PROMPT, query)
-	query_data = json.loads(response)
+	try:
+		query_data = json.loads(response)
+	except json.JSONDecodeError as e:
+		logger.error(f"LLM returned invalid JSON: {e}. Response: {response[:300]}")
+		raise ValueError("LLM returned invalid JSON") from e
 	return query_data
