@@ -19,7 +19,7 @@ def generate_number():
 
 def send_verification_email(to_email, number):
 	"""Send verification code to the user's email to check if the email is valid."""
-	send_email(to_email, "Your Verification Code", f"Your verification code is: {number}")
+	send_email(to_email, "Your Verification Code", f"Your verification code is: {number}", None)
 
 @st.cache_data(ttl=604800) # 7 days
 def cached_journals():
@@ -28,7 +28,7 @@ def cached_journals():
 def go_to(page):
 	st.session_state["page"] = page
 
-def exit():
+def back_to_home():
 	keys_to_reset = [
 		"pending_email",
 		"verification_number",
@@ -119,7 +119,7 @@ def handle_enter_email():
 	with col_title:
 		st.markdown("### Enter your email below")
 	with col_btn:
-		st.button("❌", on_click=exit, use_container_width=True)
+		st.button("❌", on_click=back_to_home, use_container_width=True)
 	with st.form(key='new_user_form'):
 		st.text_input("📧 Email", placeholder="your.email@example.com", key="email")
 		if st.session_state["email_error"]:
@@ -166,7 +166,7 @@ def handle_edit_research_interests():
 	with col_title:
 		st.markdown("### Edit Your Research Interests")
 	with col_btn:
-		st.button("❌", on_click=exit, use_container_width=True)
+		st.button("❌", on_click=back_to_home, use_container_width=True)
 	with st.form(key='edit_research_interests_form'):
 		st.text_input("Email", value=db_user["email"], disabled=True)
 		if not st.session_state.get("u_query"):
@@ -231,7 +231,7 @@ def show_verification():
 	with col_title:
 		st.markdown("### Verify your email")
 	with col_btn:
-		st.button("❌", on_click=exit, use_container_width=True)
+		st.button("❌", on_click=back_to_home, use_container_width=True)
 	st.info("✉️ A verification code has been sent to your email. Please check your inbox.")
 	with st.form("verification form"):
 		c1, c2, c3 = st.columns(3)
@@ -266,7 +266,7 @@ def submit_feedback():
 	}
 	db.add_feedback(feedback)
 	st.toast("✅ Feedback submitted successfully!")
-	exit()
+	back_to_home()
 
 def handle_feedback():
 	if not st.session_state["is_feedback"]:
@@ -276,7 +276,7 @@ def handle_feedback():
 		with col_title:
 			st.markdown("### Feedback for the literature update you received")
 		with col_btn:
-			st.button("❌", on_click=exit, use_container_width=True)
+			st.button("❌", on_click=back_to_home, use_container_width=True)
 		with st.form(key='feedback'):
 			st.text_area(label="Your feedback", key="u_feedback")
 			if st.session_state["feedback_error"]:
@@ -332,7 +332,11 @@ def submit_description():
 		st.session_state["query_error"] = error
 		return
 	with st.spinner("Analyzing your description...", show_time=True):
-		query_data = adapt_queries_with_llm(u_query)
+		try:
+			query_data = adapt_queries_with_llm(u_query)
+		except Exception:
+			st.session_state["query_error"] = "❌ Failed to analyze your description. Please try again."
+			return
 	if query_data.get("is_valid_research_query") == False:
 		st.session_state["query_error"] = query_data.get("explanation")
 		return
@@ -349,7 +353,7 @@ def handle_edit_description():
 	with col_title:
 		st.markdown("### Edit Your Research Description")
 	with col_btn:
-		st.button("❌", on_click=exit, use_container_width=True)
+		st.button("❌", on_click=back_to_home, use_container_width=True)
 	with st.form(key='edit_research_description_form'):
 		st.text_input("Email", value=db_user["email"], disabled=True)
 		value = db_user.get("query") if db_user.get("query") else None
@@ -381,7 +385,7 @@ def handle_user_profile():
 	with col_title:
 		st.markdown("### Your Profile")
 	with col_btn:
-		st.button("❌", on_click=exit, use_container_width=True)
+		st.button("❌", on_click=back_to_home, use_container_width=True)
 	st.markdown("<hr style='margin: 0rem 0;'>", unsafe_allow_html=True)
 	st.markdown("##### Profile Summary")
 	col1, col2, col3 = st.columns([.5, .25, .25], border=True,)
