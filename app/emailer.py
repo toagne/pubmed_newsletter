@@ -1,6 +1,7 @@
 import smtplib
 from email.message import EmailMessage
 import os
+import logging
 from dotenv import load_dotenv
 
 import io
@@ -10,6 +11,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 load_dotenv()
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
+
+logger = logging.getLogger(__name__)
 
 def create_pdf(papers):
 	buffer = io.BytesIO()
@@ -47,13 +50,14 @@ def create_pdf(papers):
 	buffer.seek(0)
 	return buffer.read()
 
-def send_email(to, subject, body, papers):
+def send_email(to, subject, body, papers=None):
 	msg = EmailMessage()
 	msg['Subject'] = subject
 	msg['From'] = f"Scientific Literature Newsletter <{GMAIL_USER}>"
 	msg['To'] = to
-	journals_text = "\n".join(f"- {j}" for j in body["Journals"])
-	msg.set_content(f"""
+	if papers:
+		journals_text = "\n".join(f"- {j}" for j in body["Journals"])
+		msg.set_content(f"""
 !!!THERE IS A FEEDBACK SESSION IN THE HOME PAGE IF YOU WANT TO LEAVE ANY FEEDBACK ABOUT THE LITERATURE UPDATE YOU RECEIVED!!!
 
 In the attachment you can find the literature update for the last month.
@@ -67,15 +71,21 @@ Number of papers: {body["N of papers"]}
 Pub Types: {", ".join(body["Pub types"])} (this is a fixed parameter)
 """)
 
-	pdf_bytes = create_pdf(papers)
-	year, month = body["Date"].split("/")
-	msg.add_attachment(
-		pdf_bytes,
-		maintype="application",
-		subtype="pdf",
-		filename=f"Literature Update_{year}_{month}.pdf"
-	)
+		pdf_bytes = create_pdf(papers)
+		year, month = body["Date"].split("/")
+		msg.add_attachment(
+			pdf_bytes,
+			maintype="application",
+			subtype="pdf",
+			filename=f"Literature Update_{year}_{month}.pdf"
+		)
+	else:
+		msg.set_content(body)
 
-	with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-		server.login(GMAIL_USER, GMAIL_PASSWORD)
-		server.send_message(msg)
+	try:
+		with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+			server.login(GMAIL_USER, GMAIL_PASSWORD)
+			server.send_message(msg)
+	except smtplib.SMTPException as e:
+		logger.error(f"Failed to send email to {to}: {e}")
+		raise
