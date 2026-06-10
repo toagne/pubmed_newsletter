@@ -6,6 +6,7 @@ from langchain_core.stores import InMemoryByteStore
 from langchain_classic.embeddings import CacheBackedEmbeddings
 
 import json
+import warnings
 
 from app.utils import chunk_list, format_batch, logger, adapt_queries_with_llm
 from app import llm
@@ -49,7 +50,14 @@ def run_similarity_search(query, papers, n_of_papers):
 	logger.info("Running similarity search...")
 	docs = [Document(page_content=p.abstract, metadata={"pmid": p.pmid}) for p in papers]
 	vectorstore = FAISS.from_documents(docs, _embeddings)
-	results = vectorstore.similarity_search_with_relevance_scores(query, k=n_of_papers)
+	with warnings.catch_warnings(record=True) as w:
+		warnings.simplefilter("always")
+		warnings.filterwarnings("ignore", category=ResourceWarning)
+		results = vectorstore.similarity_search_with_relevance_scores(query, k=n_of_papers)
+		langchain_warnings = [x for x in w if "Relevance scores" in str(x.message)]
+		if langchain_warnings:
+			logger.warning("Similarity scores out of range — filtering negative scores.")
+			results = [(doc, score) for doc, score in results if score >= 0]
 	return results
 
 
@@ -65,8 +73,10 @@ def update_keywords_and_sim_query_if_missing(user):
 def get_papers_on_pubmed(user, journal_names, last_month, papers_cache, fetched_paper_ids, pub_types):
 	logger.info("Fetching PubMed IDs with keywords...")
 	papers_ids_with_keywords = set(pubmed.get_ids(journal_names, user["pubmed_keywords"], pub_types, last_month))
+	target_ratio = 3
+	used_keywords = len(papers_ids_with_keywords) >= user["num_papers"] * target_ratio
 	# if fetch with keywords gives no ids fetch without keywords
-	if not papers_ids_with_keywords:
+	if not used_keywords:
 		logger.info(f"Not enough papers found with keywords for user id {user['id']}, fetching without keywords")
 		paper_ids = set(pubmed.get_ids(journal_names, None, pub_types, last_month))
 	else:
@@ -94,7 +104,7 @@ def run_pipeline(user, last_month, papers_cache, fetched_paper_ids, pub_types, s
 	papers = get_papers_on_pubmed(user, journals_names, last_month, papers_cache, fetched_paper_ids, pub_types)
 
 	# --- FAISS similarity search ---
-	sim_search_res = run_similarity_search(user["vector_query"], papers, user["num_papers"])
+	sim_search_res = run_similarity_search(user["vector_query"], papers, user["num_papers"] * 2)
 	papers_by_pmid = {p.pmid: p for p in papers}
 	sim_papers = [
 		papers_by_pmid[doc.metadata["pmid"]]
@@ -104,7 +114,7 @@ def run_pipeline(user, last_month, papers_cache, fetched_paper_ids, pub_types, s
 	# sim_scores = [round(float(score), 4) for _, score in sim_search_res]
 
 	# --- LLM analysis ---
-	llm_papers = analyze_papers(sim_papers, user["query"])
+	llm_papers = analyze_papers(sim_papers, user["query"])[:user["num_papers"]]
 	# llm_scores = [round(p.relevance_score, 4) for p in llm_papers]
 
 	email_body = {
