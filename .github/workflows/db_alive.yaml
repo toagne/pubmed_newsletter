@@ -1,0 +1,12 @@
+name: Keep Supabase alive
+
+on:
+  schedule:
+    - cron: '0 9 */5 * *'  # ogni 5 giorni
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/ping_db.py
