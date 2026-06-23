@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 9 */5 * *'  # ogni 5 giorni
 
+  workflow_dispatch:
+
 jobs:
   ping:
     runs-on: ubuntu-latest
