@@ -1,4 +1,5 @@
 import unittest
+from contextlib import nullcontext
 from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.utils import fetch_xml, chunk_list, Paper
 from app.pubmed import get_ids, get_all_papers
+import app.streamlit_app as streamlit_app
 
 class TestMain(unittest.TestCase):
 
@@ -67,6 +69,35 @@ class TestMain(unittest.TestCase):
 		data = [1, 2, 3, 4, 5]
 		chunks = list(chunk_list(data, 2, "", verbose=False))
 		self.assertEqual(chunks, [[1, 2], [3, 4], [5]])
+
+	@patch('app.streamlit_app.db.update_user_interests')
+	@patch('app.streamlit_app.db.get_user')
+	@patch('app.streamlit_app.adapt_queries_with_llm')
+	def test_submit_description_persists_updated_query_to_db(self, mock_adapt, mock_get_user, mock_update_user_interests):
+		"""Ensure a new description is stored immediately when the user submits it."""
+		mock_get_user.return_value = {"query": None}
+		mock_adapt.return_value = {
+			"is_valid_research_query": True,
+			"pubmed_keywords": ["cancer"],
+			"vector_query": "cancer research"
+		}
+		mock_session_state = {}
+		with patch.object(streamlit_app.st, "session_state", mock_session_state), \
+			 patch.object(streamlit_app.st, "spinner", return_value=nullcontext()), \
+			 patch.object(streamlit_app, "go_to") as mock_go_to:
+			mock_session_state["pending_email"] = "user@example.com"
+			mock_session_state["u_query"] = "Updated research description for cancer genomics and transcriptomics"
+			streamlit_app.submit_description()
+		self.assertEqual(mock_session_state["u_query"], "Updated research description for cancer genomics and transcriptomics")
+		mock_update_user_interests.assert_called_once_with(
+			"user@example.com",
+			"Updated research description for cancer genomics and transcriptomics",
+			None,
+			None,
+			None,
+			mock_adapt.return_value,
+		)
+		mock_go_to.assert_called_once_with("edit_interests")
 
 	def test_paper_dataclass(self):
 		"""Test Paper dataclass creation."""

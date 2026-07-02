@@ -136,11 +136,8 @@ def submit_interests():
 		st.session_state["journals_error"] = "❌ You need to select at least one Journal"
 		return
 	db_user = db.get_user(st.session_state["pending_email"])
-	u_query = st.session_state.get("u_query")
 	u_n_of_papers = st.session_state.get("u_n_of_papers")
 	u_receive_email = st.session_state.get("u_receive_email")
-	if u_query == db_user["query"]:
-		u_query = None
 	if u_journals == db_user["journals"]:
 		u_journals = None
 	if u_n_of_papers == db_user["num_papers"]:
@@ -149,11 +146,11 @@ def submit_interests():
 		u_receive_email = None
 	db.update_user_interests(
 		db_user["email"],
-		u_query,
+		None,
 		u_journals,
 		u_n_of_papers,
 		u_receive_email,
-		st.session_state["query_data"]
+		None,
 	)
 	st.toast("🎉 Your research interests has been submitted successfully!")
 	go_to("user_profile")
@@ -341,7 +338,16 @@ def submit_description():
 		st.session_state["query_error"] = query_data.get("explanation")
 		return
 	st.session_state["query_error"] = None
+	st.session_state["u_query"] = u_query
 	st.session_state["query_data"] = query_data
+	db.update_user_interests(
+		st.session_state["pending_email"],
+		u_query,
+		None,
+		None,
+		None,
+		query_data,
+	)
 	if db.get_user(st.session_state["pending_email"]).get("query"):
 		st.session_state["show_journal_dialog"] = True
 	else:
@@ -349,6 +355,8 @@ def submit_description():
 
 def handle_edit_description():
 	db_user = db.get_user(st.session_state["pending_email"])
+	if "u_query" not in st.session_state:
+		st.session_state["u_query"] = db_user.get("query") or ""
 	col_title, col_btn = st.columns([0.9, 0.1], vertical_alignment="center")
 	with col_title:
 		st.markdown("### Edit Your Research Description")
@@ -356,13 +364,11 @@ def handle_edit_description():
 		st.button("❌", on_click=back_to_home, use_container_width=True)
 	with st.form(key='edit_research_description_form'):
 		st.text_input("Email", value=db_user["email"], disabled=True)
-		value = db_user.get("query") if db_user.get("query") else None
 		placeholder = ("Describe your research subjects and interests here...\nExample: I am a cancer researcher focusing on tumor evolution using genomic and transcriptomics data"
-			if not db_user["query"]
+			if not db_user.get("query")
 			else None)
 		st.text_area(
 			label="💬 Research Description",
-			value=value,
 			key="u_query",
 			placeholder=placeholder
 		)

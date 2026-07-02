@@ -10,7 +10,7 @@ jobs:
   run:
     runs-on: ubuntu-latest # virtual machine
 
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repo # copy everything on vm
